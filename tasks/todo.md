@@ -86,14 +86,14 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
 
 ## Phase 2: Collections Decisioning
 
-- [ ] Task 9: Implement Customer Account aggregation and ageing cohorts
+- [x] Task 9: Implement Customer Account aggregation and ageing cohorts
   - Acceptance: Eligible invoices aggregate by Customer Account and produce
     30+, 60+, and 90+ day cohorts as of a supplied Asia/Kolkata date.
   - Verify: Test multiple invoices, partial payments, one customer with several
     cases, and ineligible accounts.
   - Files: `bharat_arp/collections.py`, `tests/test_collections.py`
 
-- [ ] Task 10: Implement versioned, explainable priority ranking with input
+- [x] Task 10: Implement versioned, explainable priority ranking with input
   availability and freshness
   - Acceptance: Ranking is deterministic, stores Policy Version, exposes each
     input/value/availability state, and excludes unresolved exposure.
@@ -101,7 +101,7 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
     distinct evidence; stale and missing inputs are visible.
   - Files: `bharat_arp/decisioning.py`, `tests/test_decisioning.py`
 
-- [ ] Task 11: Implement bounded Collection Proposals and evidence views
+- [x] Task 11: Implement bounded Collection Proposals and evidence views
   - Acceptance: Proposals contain source references, risk flags, expected
     outcome, suggested owner, and no executable side effect.
   - Verify: Open disputes and unknown/stale/denied Communication Eligibility
@@ -112,9 +112,9 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
 
 ## Checkpoint: Decisioning
 
-- [ ] Top cases are explainable and deterministic
-- [ ] Disputes and unknown Communication Eligibility prevent unsafe proposals
-- [ ] Proposal policy versions are immutable
+- [x] Top cases are explainable and deterministic
+- [x] Disputes and unknown Communication Eligibility prevent unsafe proposals
+- [x] Proposal policy versions are immutable
 
 ## Phase 3: Human Workflow and Outcomes
 
