@@ -143,7 +143,7 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
   - Files: `bharat_arp/metrics.py`, `tests/test_metrics.py`,
     `docs/measurement-protocol.md`
 
-- [ ] Task 15: Implement CLI/report interface, export, and tenant purge
+- [x] Task 15: Implement CLI/report interface, export, and tenant purge
   - Acceptance: Import, queue, case inspection, decision, promise, outcome,
     metrics, export, and purge capabilities work for one fixture tenant.
   - Verify: Run the documented pilot commands end to end; assert exports are
@@ -153,9 +153,9 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
 
 ## Checkpoint: Pilot Readiness
 
-- [ ] Full fixture flow passes from import through payment outcome
-- [ ] Audit trail and guardrail metrics are visible
-- [ ] No external side effect is possible without an approved contract
+- [x] Full fixture flow passes from import through payment outcome
+- [x] Audit trail and guardrail metrics are visible
+- [x] No external side effect is possible without an approved contract
 
 ## Phase 4: Validation and Integration Gate
 

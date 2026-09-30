@@ -184,6 +184,12 @@ class WorkflowStore:
     def audit_events(self) -> tuple[AuditEvent, ...]:
         return tuple(self._events)
 
+    def restore_audit_events(self, events: tuple[AuditEvent, ...]) -> None:
+        """Restore persisted audit history without replaying domain mutations."""
+        if self._events:
+            raise WorkflowError("audit history must be restored before new events")
+        self._events.extend(events)
+
     def proposals(self) -> tuple[WorkflowProposal, ...]:
         return tuple(self._proposals.values())
 
