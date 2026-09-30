@@ -1,8 +1,7 @@
 # Spec: Bharat ARP Collections Control Tower
 
-**Status:** Proposed for review. No implementation beyond the existing
-receivables policy kernel should proceed until this specification and
-`tasks/plan.md` are approved.
+**Status:** Approved for implementation on 2026-09-30. Implementation must
+follow the capability map and task gates in `tasks/plan.md` and `tasks/todo.md`.
 
 ## Objective
 

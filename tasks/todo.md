@@ -5,13 +5,13 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
 
 ## Phase 0: Specification and Domain Foundation
 
-- [ ] Task 1: Approve the capability map and product specification
+- [x] Task 1: Approve the capability map and product specification
   - Acceptance: Human owner confirms ICP, scope, non-goals, success criteria,
     and side-effect boundaries in `SPEC.md`.
   - Verify: Review `CAPABILITY-MAP.md`, `SPEC.md`, and `tasks/plan.md` together.
   - Files: `CAPABILITY-MAP.md`, `SPEC.md`, `tasks/plan.md`
 
-- [ ] Task 2: Quarantine the unsafe phone-based policy and define
+- [x] Task 2: Quarantine the unsafe phone-based policy and define
   Communication Eligibility
   - Acceptance: A phone number or email alone cannot produce a customer-contact
     proposal; unknown, denied, opted-out, stale, and eligible states have

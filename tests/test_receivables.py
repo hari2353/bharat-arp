@@ -1,6 +1,21 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
-from bharat_arp.receivables import Invoice, propose_collection_action
+from bharat_arp.receivables import (
+    CommunicationEligibility,
+    Invoice,
+    propose_collection_action,
+)
+
+
+def eligible_whatsapp_contact():
+    return CommunicationEligibility(
+        contact_id="CONTACT-1001",
+        contact_role="accounts_payable",
+        channel="whatsapp",
+        state="eligible",
+        evidence_source="customer_permission_record",
+        observed_at=datetime(2026, 9, 29, tzinfo=timezone.utc),
+    )
 
 
 def test_overdue_invoice_creates_approval_gated_whatsapp_action():
@@ -10,7 +25,7 @@ def test_overdue_invoice_creates_approval_gated_whatsapp_action():
         amount_inr=125000,
         due_date=date(2026, 9, 1),
         status="unpaid",
-        customer_phone="+919876543210",
+        communication_eligibility=eligible_whatsapp_contact(),
     )
 
     proposal = propose_collection_action(invoice, today=date(2026, 9, 30))
@@ -29,7 +44,7 @@ def test_paid_invoice_does_not_create_action():
         amount_inr=5000,
         due_date=date(2026, 9, 1),
         status="paid",
-        customer_phone="+919876543211",
+        communication_eligibility=eligible_whatsapp_contact(),
     )
 
     proposal = propose_collection_action(invoice, today=date(2026, 9, 30))
@@ -38,18 +53,65 @@ def test_paid_invoice_does_not_create_action():
     assert proposal.requires_approval is False
 
 
-def test_missing_phone_number_is_never_sent_to_whatsapp():
+def test_phone_number_without_permission_evidence_requires_review():
     invoice = Invoice(
         invoice_id="INV-1003",
         customer_name="No Phone Customer",
         amount_inr=2500,
         due_date=date(2026, 9, 1),
         status="unpaid",
-        customer_phone=None,
+        communication_eligibility=None,
     )
 
     proposal = propose_collection_action(invoice, today=date(2026, 9, 30))
 
-    assert proposal.action == "draft_customer_follow_up"
-    assert proposal.channel == "email"
+    assert proposal.action == "review_required"
+    assert proposal.channel == "none"
     assert proposal.requires_approval is True
+
+
+def test_unknown_permission_never_creates_customer_contact_proposal():
+    invoice = Invoice(
+        invoice_id="INV-1004",
+        customer_name="Unknown Permission Customer",
+        amount_inr=2500,
+        due_date=date(2026, 9, 1),
+        status="unpaid",
+        communication_eligibility=CommunicationEligibility(
+            contact_id="CONTACT-1004",
+            contact_role="accounts_payable",
+            channel="email",
+            state="unknown",
+            evidence_source="erpnext_export",
+            observed_at=datetime(2026, 9, 29, tzinfo=timezone.utc),
+        ),
+    )
+
+    proposal = propose_collection_action(invoice, today=date(2026, 9, 30))
+
+    assert proposal.action == "review_required"
+    assert proposal.channel == "none"
+
+
+def test_opted_out_contact_creates_no_action():
+    invoice = Invoice(
+        invoice_id="INV-1005",
+        customer_name="Opted Out Customer",
+        amount_inr=2500,
+        due_date=date(2026, 9, 1),
+        status="unpaid",
+        communication_eligibility=CommunicationEligibility(
+            contact_id="CONTACT-1005",
+            contact_role="accounts_payable",
+            channel="whatsapp",
+            state="opted_out",
+            evidence_source="customer_opt_out",
+            observed_at=datetime(2026, 9, 29, tzinfo=timezone.utc),
+        ),
+    )
+
+    proposal = propose_collection_action(invoice, today=date(2026, 9, 30))
+
+    assert proposal.action == "no_action"
+    assert proposal.channel == "none"
+    assert proposal.requires_approval is False
