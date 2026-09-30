@@ -1,0 +1,2 @@
+tenant_id,source_system,source_record_id,source_updated_at,import_batch_id,source_invoice_id,source_customer_id,invoice_date,due_date,amount_inr,status
+DEMO-1,synthetic,DEMO-INV-1,2026-09-30T10:00:00+05:30,DEMO-BATCH-1,DEMO-INV-1,DEMO-CUST-1,2026-07-01,2026-08-01,125000.00,overdue

@@ -9,3 +9,6 @@ venv/
 dist/
 build/
 *.egg-info/
+examples/demo/workspace/
+examples/demo/exported/
+examples/demo/DEMO-1/

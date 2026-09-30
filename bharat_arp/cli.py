@@ -14,6 +14,7 @@ from .decisioning import AccountExposure, CustomerAccount, rank_accounts
 from .importing import validate_csv_text
 from .normalization import NormalizedSourceStore
 from .reconciliation import reconcile_invoice
+from .reports import render_queue_csv, render_queue_html, render_queue_text
 from .workflow import AuditEvent, WorkflowError, WorkflowStore
 
 
@@ -48,10 +49,7 @@ def run(argv: list[str] | None = None) -> int:
             _run_outcome(args, state)
             _save_state(args.workspace, args.tenant, state)
         elif args.command == "metrics":
-            print(
-                f"tenant={args.tenant} cases={len(state.get('cases', []))} "
-                f"outcomes={len(state.get('outcomes', []))}"
-            )
+            _run_metrics(args, state)
         elif args.command == "export":
             _export_state(args.workspace, args.tenant, state, args.output)
             print(f"exported tenant {args.tenant}")
@@ -78,6 +76,7 @@ def _parser() -> argparse.ArgumentParser:
     queue = subparsers.add_parser("queue")
     queue.add_argument("--tenant", required=True)
     queue.add_argument("--as-of", default="2026-09-30")
+    queue.add_argument("--format", choices=("text", "csv", "html"), default="text")
 
     import_command = subparsers.add_parser("import")
     import_command.add_argument("--tenant", required=True)
@@ -127,6 +126,9 @@ def _parser() -> argparse.ArgumentParser:
 
     metrics = subparsers.add_parser("metrics")
     metrics.add_argument("--tenant", required=True)
+    metrics.add_argument("--from", dest="from_date")
+    metrics.add_argument("--to", dest="to_date")
+    metrics.add_argument("--format", choices=("text", "json"), default="text")
 
     export = subparsers.add_parser("export")
     export.add_argument("--tenant", required=True)
@@ -181,6 +183,11 @@ def _store_from_state(state: dict) -> WorkflowStore:
             store.decide_proposal(proposal["proposal_id"], decision="approve")
         elif proposal["status"] == "rejected":
             store.decide_proposal(proposal["proposal_id"], decision="reject")
+        elif proposal["status"] == "stale":
+            store.mark_proposal_stale(
+                proposal["proposal_id"],
+                new_evidence_fingerprint=proposal["evidence_fingerprint"],
+            )
     for promise in state["promises"]:
         store.record_promise(
             promise_id=promise["promise_id"],
@@ -189,10 +196,26 @@ def _store_from_state(state: dict) -> WorkflowStore:
             due_on=promise["due_on"],
             source=promise["source"],
         )
+        promise_paths = {
+            "accepted": ("accepted",),
+            "fulfilled": ("accepted", "fulfilled"),
+            "broken": ("accepted", "broken"),
+            "cancelled": ("accepted", "cancelled"),
+            "rejected": ("rejected",),
+        }
+        for status in promise_paths.get(promise["status"], ()):
+            store.transition_promise(promise["promise_id"], status)
     for case in state.get("cases", []):
         store.create_case(case_id=case["case_id"], customer_id=case["customer_id"])
-        if case["status"] != "new":
-            store.transition_case(case["case_id"], case["status"])
+        case_paths = {
+            "open": ("open",),
+            "in_progress": ("open", "in_progress"),
+            "resolved": ("open", "in_progress", "resolved"),
+            "closed": ("open", "closed"),
+            "reopened": ("open", "in_progress", "resolved", "reopened"),
+        }
+        for status in case_paths.get(case["status"], ()):
+            store.transition_case(case["case_id"], status)
     for outcome in state.get("outcomes", []):
         store.record_outcome(case_id=outcome["case_id"], outcome=outcome["outcome"])
     store._events.clear()
@@ -212,8 +235,8 @@ def _store_from_state(state: dict) -> WorkflowStore:
     return store
 
 
-def _state_from_store(store: WorkflowStore) -> dict:
-    return {
+def _state_from_store(store: WorkflowStore, *, existing_state: dict | None = None) -> dict:
+    state = {
         "tenant_id": store.tenant_id,
         "operator_id": store.operator_id,
         "proposals": [
@@ -225,8 +248,16 @@ def _state_from_store(store: WorkflowStore) -> dict:
         ],
         "cases": [asdict(item) for item in store.cases()],
         "outcomes": [asdict(item) for item in store.outcomes()],
-        "audit": [asdict(event) for event in store.audit_events()],
+        "audit": [
+            {**asdict(event), "occurred_at": event.occurred_at.isoformat()}
+            for event in store.audit_events()
+        ],
     }
+    if existing_state is not None:
+        for key in ("source_rows", "imports"):
+            if key in existing_state:
+                state[key] = existing_state[key]
+    return state
 
 
 def _run_proposal(args: argparse.Namespace, state: dict) -> None:
@@ -241,8 +272,9 @@ def _run_proposal(args: argparse.Namespace, state: dict) -> None:
         )
     else:
         store.decide_proposal(args.proposal, decision=args.decision)
+    preserved_state = state.copy()
     state.clear()
-    state.update(_state_from_store(store))
+    state.update(_state_from_store(store, existing_state=preserved_state))
     if args.proposal_command == "create":
         print(f"proposal {args.proposal} created")
     else:
@@ -258,13 +290,17 @@ def _run_promise(args: argparse.Namespace, state: dict) -> None:
         due_on=args.due,
         source="pilot_operator",
     )
+    preserved_state = state.copy()
     state.clear()
-    state.update(_state_from_store(store))
+    state.update(_state_from_store(store, existing_state=preserved_state))
     print(f"promise {args.promise} recorded")
 
 
 def _run_import(args: argparse.Namespace, state: dict) -> None:
     input_dir = _safe_child_path(args.workspace, args.input)
+    if any(item.get("batch") == args.batch for item in state.get("imports", [])):
+        print(f"batch {args.batch} already imported")
+        return
     record_types = (
         "customers",
         "contacts",
@@ -309,7 +345,12 @@ def _run_import(args: argparse.Namespace, state: dict) -> None:
 def _run_queue(args: argparse.Namespace, state: dict) -> None:
     source_rows = state.get("source_rows", {})
     if not source_rows:
-        print(f"tenant={args.tenant} queue=empty")
+        if args.format == "csv":
+            print("customer_id,legal_name,outstanding_inr,score,overdue_days,ageing_bucket,eligible,policy_version,explanation,missing_inputs")
+        elif args.format == "html":
+            print(render_queue_html(()), end="")
+        else:
+            print(f"tenant={args.tenant} queue=empty")
         return
     store = NormalizedSourceStore(tenant_id=args.tenant)
     for record_type, rows in source_rows.items():
@@ -358,12 +399,12 @@ def _run_queue(args: argparse.Namespace, state: dict) -> None:
         as_of=date.fromisoformat(args.as_of),
         policy_version="v1",
     )
-    for item in ranked:
-        print(
-            f"customer={item.legal_name} outstanding={item.outstanding:.2f} "
-            f"score={item.score:.2f} bucket={item.ageing_bucket} "
-            f"eligible={str(item.eligible).lower()}"
-        )
+    if args.format == "csv":
+        print(render_queue_csv(ranked), end="")
+    elif args.format == "html":
+        print(render_queue_html(ranked), end="")
+    else:
+        print(render_queue_text(ranked), end="")
 
 
 def _run_case(args: argparse.Namespace, state: dict) -> None:
@@ -376,16 +417,46 @@ def _run_case(args: argparse.Namespace, state: dict) -> None:
         if case is None:
             raise WorkflowError("case not found")
         print(f"case={case.case_id} customer={case.customer_id} status={case.status}")
+    preserved_state = state.copy()
     state.clear()
-    state.update(_state_from_store(store))
+    state.update(_state_from_store(store, existing_state=preserved_state))
 
 
 def _run_outcome(args: argparse.Namespace, state: dict) -> None:
     store = _store_from_state(state)
     store.record_outcome(case_id=args.case, outcome=args.outcome)
+    preserved_state = state.copy()
     state.clear()
-    state.update(_state_from_store(store))
+    state.update(_state_from_store(store, existing_state=preserved_state))
     print(f"outcome recorded for case {args.case}")
+
+
+def _run_metrics(args: argparse.Namespace, state: dict) -> None:
+    summary = {
+        "tenant": args.tenant,
+        "from": args.from_date,
+        "to": args.to_date,
+        "imports": len(state.get("imports", [])),
+        "source_rows": sum(
+            len(rows) for rows in state.get("source_rows", {}).values()
+        ),
+        "cases": len(state.get("cases", [])),
+        "proposals": len(state.get("proposals", [])),
+        "promises": len(state.get("promises", [])),
+        "outcomes": len(state.get("outcomes", [])),
+        "audit_events": len(state.get("audit", [])),
+    }
+    if args.format == "json":
+        print(json.dumps(summary, sort_keys=True))
+        return
+    window = ""
+    if args.from_date or args.to_date:
+        window = f" from={args.from_date or '-'} to={args.to_date or '-'}"
+    print(
+        f"tenant={args.tenant}{window} cases={summary['cases']} "
+        f"proposals={summary['proposals']} promises={summary['promises']} "
+        f"outcomes={summary['outcomes']} source_rows={summary['source_rows']}"
+    )
 
 
 def _export_state(workspace: Path, tenant: str, state: dict, output: Path) -> None:

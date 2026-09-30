@@ -1,0 +1,2 @@
+tenant_id,source_system,source_record_id,source_updated_at,import_batch_id,source_dispute_id,source_customer_id,source_invoice_id,category,status,opened_at,resolved_at
+DEMO-1,synthetic,DEMO-DISP-1,2026-09-30T10:00:00+05:30,DEMO-BATCH-1,DEMO-DISP-1,DEMO-CUST-1,DEMO-INV-1,none,resolved,2026-08-01T10:00:00+05:30,2026-08-02T10:00:00+05:30

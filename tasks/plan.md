@@ -39,9 +39,12 @@ collections-decisioning ---- promise-to-pay
 
 ## Task List
 
-Tasks 1-15 are implemented and verified in the offline validation MVP. Tasks
-16-18 are the business validation and integration gate; they require real pilot
-evidence and must not be replaced by more prototype integrations.
+Tasks 1-15 have an executable offline slice. The core import, decisioning,
+workflow, persistence, queue report, and synthetic demo paths are verified;
+the full measurement-protocol and legal-hold retention extensions remain
+explicit follow-up work. Tasks 16-18 are the business validation and
+integration gate; they require real pilot evidence and must not be replaced by
+more prototype integrations.
 
 ### Phase 0: Specification and Domain Foundation
 
@@ -97,6 +100,11 @@ evidence and must not be replaced by more prototype integrations.
 - [x] Task 14: Implement payment outcome linkage and pilot metrics using the
   measurement protocol
 - [x] Task 15: Implement CLI/report interface, export, and tenant purge
+
+  The current offline slice includes CLI commands, deterministic text/CSV/HTML
+  queue reports, formula-safe audit export, and tenant purge. Full
+  retention-policy enforcement, legal holds, tombstones, and metrics derived
+  from weekly pilot snapshots remain follow-up work before production use.
 
 ### Checkpoint: Pilot Readiness
 

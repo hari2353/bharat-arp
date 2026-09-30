@@ -1,0 +1,2 @@
+tenant_id,source_system,source_record_id,source_updated_at,import_batch_id,source_contact_id,source_customer_id,display_name,role,email,phone,email_permission,whatsapp_permission,opted_out,permission_observed_at
+DEMO-1,synthetic,DEMO-CONTACT-1,2026-09-30T10:00:00+05:30,DEMO-BATCH-1,DEMO-CONTACT-1,DEMO-CUST-1,Demo Payables,accounts_payable,demo@example.invalid,+910000000000,unknown,unknown,false,2026-09-30T10:00:00+05:30

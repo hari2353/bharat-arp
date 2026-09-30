@@ -74,8 +74,13 @@ paid-pilot and data-quality assumptions are tested.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
-python -m pytest
+python -m pytest -q
+python -m build
 ```
+
+The package also installs a `bharat-arp` command. The project is Apache-2.0
+licensed and welcomes contributions; see [CONTRIBUTING.md](CONTRIBUTING.md),
+[SECURITY.md](SECURITY.md), and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Offline Validation Workflow
 
@@ -85,10 +90,12 @@ external side effects:
 ```powershell
 python -m bharat_arp.cli --workspace .\workspace init --tenant TENANT-1
 python -m bharat_arp.cli --workspace .\workspace import --tenant TENANT-1 --batch BATCH-1 --input .\fixtures\export
-python -m bharat_arp.cli --workspace .\workspace queue --tenant TENANT-1 --as-of 2026-09-30
+python -m bharat_arp.cli --workspace .\workspace queue --tenant TENANT-1 --as-of 2026-09-30 --format text
+python -m bharat_arp.cli --workspace .\workspace queue --tenant TENANT-1 --as-of 2026-09-30 --format csv
+python -m bharat_arp.cli --workspace .\workspace queue --tenant TENANT-1 --as-of 2026-09-30 --format html
 python -m bharat_arp.cli --workspace .\workspace case create --tenant TENANT-1 --case CASE-1 --customer CUST-1
 python -m bharat_arp.cli --workspace .\workspace promise record --tenant TENANT-1 --promise PROMISE-1 --customer CUST-1 --amount 125000.00 --due 2026-10-15
-python -m bharat_arp.cli --workspace .\workspace metrics --tenant TENANT-1
+python -m bharat_arp.cli --workspace .\workspace metrics --tenant TENANT-1 --format json
 python -m bharat_arp.cli --workspace .\workspace export --tenant TENANT-1 --output .\workspace\exported
 python -m bharat_arp.cli --workspace .\workspace purge --tenant TENANT-1 --confirm
 ```
@@ -99,9 +106,11 @@ reconciliation and decisioning code covered by the test suite.
 
 ## Status
 
-Offline validation MVP complete. The API, data model, and integration
-contracts are not stable. Do not use this repository for production financial,
-tax, legal, or collection decisions. Paid pilot validation is still pending.
+Offline validation MVP is available as open-source software. The API, data
+model, and integration contracts are not stable. Do not use this repository for
+production financial, tax, legal, or collection decisions. Paid pilot
+validation is still pending. A synthetic end-to-end fixture is available in
+[`examples/demo`](examples/demo).
 
 ## Research
 
@@ -110,3 +119,6 @@ tax, legal, or collection decisions. Paid pilot validation is still pending.
 - [India Compliance](https://github.com/resilient-tech/india-compliance)
 - [MSME Samadhaan](https://samadhaan.msme.gov.in/)
 - [Frappe Partners](https://frappe.io/partners)
+
+See [docs/research-sources.md](docs/research-sources.md) for the public source
+register and the product-boundary decisions drawn from it.

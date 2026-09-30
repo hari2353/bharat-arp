@@ -1,0 +1,2 @@
+tenant_id,source_system,source_record_id,source_updated_at,import_batch_id,source_customer_id,legal_name,status
+DEMO-1,synthetic,DEMO-CUST-1,2026-09-30T10:00:00+05:30,DEMO-BATCH-1,DEMO-CUST-1,Demo Engineering,active
