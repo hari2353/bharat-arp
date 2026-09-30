@@ -77,11 +77,31 @@ python -m pip install -e ".[dev]"
 python -m pytest
 ```
 
+## Offline Validation Workflow
+
+The approved validation MVP is local, single-tenant, CSV-first, and has no
+external side effects:
+
+```powershell
+python -m bharat_arp.cli --workspace .\workspace init --tenant TENANT-1
+python -m bharat_arp.cli --workspace .\workspace import --tenant TENANT-1 --batch BATCH-1 --input .\fixtures\export
+python -m bharat_arp.cli --workspace .\workspace queue --tenant TENANT-1 --as-of 2026-09-30
+python -m bharat_arp.cli --workspace .\workspace case create --tenant TENANT-1 --case CASE-1 --customer CUST-1
+python -m bharat_arp.cli --workspace .\workspace promise record --tenant TENANT-1 --promise PROMISE-1 --customer CUST-1 --amount 125000.00 --due 2026-10-15
+python -m bharat_arp.cli --workspace .\workspace metrics --tenant TENANT-1
+python -m bharat_arp.cli --workspace .\workspace export --tenant TENANT-1 --output .\workspace\exported
+python -m bharat_arp.cli --workspace .\workspace purge --tenant TENANT-1 --confirm
+```
+
+The import directory must contain the seven files specified in
+[`docs/csv-contract.md`](docs/csv-contract.md). The queue uses the same
+reconciliation and decisioning code covered by the test suite.
+
 ## Status
 
-Early prototype and proposed specification. The API, data model, and
-integration contracts are not stable. Do not use this repository for
-production financial, tax, legal, or collection decisions.
+Offline validation MVP complete. The API, data model, and integration
+contracts are not stable. Do not use this repository for production financial,
+tax, legal, or collection decisions. Paid pilot validation is still pending.
 
 ## Research
 

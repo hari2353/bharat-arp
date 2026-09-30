@@ -39,16 +39,20 @@ collections-decisioning ---- promise-to-pay
 
 ## Task List
 
+Tasks 1-15 are implemented and verified in the offline validation MVP. Tasks
+16-18 are the business validation and integration gate; they require real pilot
+evidence and must not be replaced by more prototype integrations.
+
 ### Phase 0: Specification and Domain Foundation
 
-- Task 1: Approve the capability map and product specification
-- Task 2: Quarantine the existing phone-based policy prototype and replace its
+- [x] Task 1: Approve the capability map and product specification
+- [x] Task 2: Quarantine the existing phone-based policy prototype and replace its
   unsafe channel assumption with explicit Communication Eligibility states
-- Task 3: Replace the thin invoice vocabulary with the domain glossary and
+- [x] Task 3: Replace the thin invoice vocabulary with the domain glossary and
   normalized entity contract
-- Task 4: Approve the versioned CSV contract, balance formula, and golden
+- [x] Task 4: Approve the versioned CSV contract, balance formula, and golden
   fixtures
-- Task 5: Define tenant, provenance, audit, retention, deletion, and
+- [x] Task 5: Define tenant, provenance, audit, retention, deletion, and
   data-classification invariants
 
 ### Checkpoint: Foundation
@@ -59,10 +63,10 @@ collections-decisioning ---- promise-to-pay
 
 ### Phase 1: CSV-First Evidence Pipeline
 
-- Task 6: Implement validated CSV import with row-level errors and provenance
-- Task 7: Implement idempotent normalization of customers, invoices, payments,
+- [x] Task 6: Implement validated CSV import with row-level errors and provenance
+- [x] Task 7: Implement idempotent normalization of customers, invoices, payments,
   allocations, credit notes, contacts, and disputes
-- Task 8: Implement unresolved-balance and data-quality exception reporting
+- [x] Task 8: Implement unresolved-balance and data-quality exception reporting
 
 ### Checkpoint: Evidence
 
@@ -73,10 +77,10 @@ collections-decisioning ---- promise-to-pay
 
 ### Phase 2: Collections Decisioning
 
-- Task 9: Implement Customer Account aggregation and ageing cohorts
-- Task 10: Implement versioned, explainable priority ranking with explicit input
+- [x] Task 9: Implement Customer Account aggregation and ageing cohorts
+- [x] Task 10: Implement versioned, explainable priority ranking with explicit input
   availability and freshness
-- Task 11: Implement bounded Collection Proposals and evidence views
+- [x] Task 11: Implement bounded Collection Proposals and evidence views
 
 ### Checkpoint: Decisioning
 
@@ -87,12 +91,12 @@ collections-decisioning ---- promise-to-pay
 
 ### Phase 3: Human Workflow and Outcomes
 
-- Task 12: Implement validation-mode approval, rejection, edit, and case state
+- [x] Task 12: Implement validation-mode approval, rejection, edit, and case state
   changes
-- Task 13: Implement Promise-to-Pay lifecycle and contact outcome recording
-- Task 14: Implement payment outcome linkage and pilot metrics using the
+- [x] Task 13: Implement Promise-to-Pay lifecycle and contact outcome recording
+- [x] Task 14: Implement payment outcome linkage and pilot metrics using the
   measurement protocol
-- Task 15: Implement CLI/report interface, export, and tenant purge
+- [x] Task 15: Implement CLI/report interface, export, and tenant purge
 
 ### Checkpoint: Pilot Readiness
 
