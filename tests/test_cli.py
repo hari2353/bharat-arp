@@ -118,3 +118,118 @@ def test_cli_export_neutralizes_formula_values_and_purge_removes_tenant(tmp_path
     assert run(["--workspace", str(workspace), "purge", "--tenant", "TENANT-1"]) == 2
     assert run(["--workspace", str(workspace), "purge", "--tenant", "TENANT-1", "--confirm"]) == 0
     assert not (workspace / "TENANT-1").exists()
+
+
+def test_cli_case_outcome_and_metrics_are_persisted(tmp_path: Path, capsys):
+    workspace = tmp_path / "workspace"
+    run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
+    run(
+        [
+            "--workspace",
+            str(workspace),
+            "case",
+            "create",
+            "--tenant",
+            "TENANT-1",
+            "--case",
+            "CASE-1",
+            "--customer",
+            "CUST-1",
+        ]
+    )
+    run(
+        [
+            "--workspace",
+            str(workspace),
+            "case",
+            "show",
+            "--tenant",
+            "TENANT-1",
+            "--case",
+            "CASE-1",
+        ]
+    )
+    run(
+        [
+            "--workspace",
+            str(workspace),
+            "outcome",
+            "record",
+            "--tenant",
+            "TENANT-1",
+            "--case",
+            "CASE-1",
+            "--outcome",
+            "payment_received",
+        ]
+    )
+    run(["--workspace", str(workspace), "metrics", "--tenant", "TENANT-1"])
+
+    state = json.loads((workspace / "TENANT-1" / "state.json").read_text())
+    assert state["cases"][0]["case_id"] == "CASE-1"
+    assert state["outcomes"][0]["outcome"] == "payment_received"
+    assert "cases=1" in capsys.readouterr().out
+
+
+def test_cli_import_and_queue_rank_imported_customer_accounts(tmp_path: Path, capsys):
+    workspace = tmp_path / "workspace"
+    source = workspace / "input"
+    source.mkdir(parents=True)
+    common = "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
+    (source / "customers.csv").write_text(
+        f"{common},source_customer_id,legal_name,status\n"
+        "TENANT-1,erpnext_csv,CUST-1,2026-09-30T10:00:00+05:30,BATCH-1,CUST-1,Acme,active\n"
+    )
+    (source / "invoices.csv").write_text(
+        f"{common},source_invoice_id,source_customer_id,invoice_date,due_date,amount_inr,status\n"
+        "TENANT-1,erpnext_csv,INV-1,2026-09-30T10:00:00+05:30,BATCH-1,INV-1,CUST-1,2026-07-01,2026-08-01,125000.00,overdue\n"
+    )
+    (source / "payments.csv").write_text(
+        f"{common},source_payment_id,payment_date,amount_inr,status\n"
+        "TENANT-1,erpnext_csv,PAY-1,2026-09-30T10:00:00+05:30,BATCH-1,PAY-1,2026-09-01,25000.00,posted\n"
+    )
+    (source / "payment_allocations.csv").write_text(
+        f"{common},source_payment_id,source_invoice_id,allocated_amount_inr\n"
+        "TENANT-1,erpnext_csv,ALLOC-1,2026-09-30T10:00:00+05:30,BATCH-1,PAY-1,INV-1,25000.00\n"
+    )
+    (source / "credit_notes.csv").write_text(
+        f"{common},source_credit_note_id,source_invoice_id,credit_date,amount_inr,status\n"
+        "TENANT-1,erpnext_csv,CN-1,2026-09-30T10:00:00+05:30,BATCH-1,CN-1,INV-1,2026-08-15,0.00,posted\n"
+    )
+    (source / "contacts.csv").write_text(
+        f"{common},source_contact_id,source_customer_id,display_name,role,email,phone,email_permission,whatsapp_permission,opted_out,permission_observed_at\n"
+        "TENANT-1,erpnext_csv,CONTACT-1,2026-09-30T10:00:00+05:30,BATCH-1,CONTACT-1,CUST-1,Accounts Payable,AP,ap@example.com,+919999999999,eligible,unknown,false,2026-09-30T10:00:00+05:30\n"
+    )
+    (source / "disputes.csv").write_text(
+        f"{common},source_dispute_id,source_customer_id,source_invoice_id,category,status,opened_at,resolved_at\n"
+        "TENANT-1,erpnext_csv,DISP-1,2026-09-30T10:00:00+05:30,BATCH-1,DISP-1,CUST-1,INV-1,none,resolved,2026-08-01T10:00:00+05:30,2026-08-02T10:00:00+05:30\n"
+    )
+
+    assert run(
+        [
+            "--workspace",
+            str(workspace),
+            "import",
+            "--tenant",
+            "TENANT-1",
+            "--batch",
+            "BATCH-1",
+            "--input",
+            str(source),
+        ]
+    ) == 0
+    assert run(
+        [
+            "--workspace",
+            str(workspace),
+            "queue",
+            "--tenant",
+            "TENANT-1",
+            "--as-of",
+            "2026-09-30",
+        ]
+    ) == 0
+
+    output = capsys.readouterr().out
+    assert "Acme" in output
+    assert "100000.00" in output

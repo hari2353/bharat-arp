@@ -48,6 +48,12 @@ class CollectionCase:
     status: str
 
 
+@dataclass(frozen=True)
+class CollectionOutcome:
+    case_id: str
+    outcome: str
+
+
 class WorkflowStore:
     def __init__(self, *, tenant_id: str, operator_id: str) -> None:
         self.tenant_id = tenant_id
@@ -55,6 +61,7 @@ class WorkflowStore:
         self._proposals: dict[str, WorkflowProposal] = {}
         self._promises: dict[str, PromiseToPay] = {}
         self._cases: dict[str, CollectionCase] = {}
+        self._outcomes: list[CollectionOutcome] = []
         self._events: list[AuditEvent] = []
 
     def _audit(self, action: str, object_id: str) -> None:
@@ -160,6 +167,16 @@ class WorkflowStore:
         self._audit(f"case_{status}", case_id)
         return updated
 
+    def record_outcome(self, *, case_id: str, outcome: str) -> CollectionOutcome:
+        if case_id not in self._cases:
+            raise WorkflowError("case not found")
+        if not outcome.strip():
+            raise WorkflowError("outcome is required")
+        recorded = CollectionOutcome(case_id, outcome)
+        self._outcomes.append(recorded)
+        self._audit("outcome_recorded", case_id)
+        return recorded
+
     def transition_promise(self, promise_id: str, status: str) -> PromiseToPay:
         promise = self._promises.get(promise_id)
         if promise is None:
@@ -198,3 +215,6 @@ class WorkflowStore:
 
     def cases(self) -> tuple[CollectionCase, ...]:
         return tuple(self._cases.values())
+
+    def outcomes(self) -> tuple[CollectionOutcome, ...]:
+        return tuple(self._outcomes)
