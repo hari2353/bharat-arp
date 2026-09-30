@@ -118,7 +118,7 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
 
 ## Phase 3: Human Workflow and Outcomes
 
-- [ ] Task 12: Implement validation-mode approval, rejection, edit, and case
+- [x] Task 12: Implement validation-mode approval, rejection, edit, and case
   state changes
   - Acceptance: The lifecycle transitions in `docs/lifecycles.md` are enforced
     and every mutation records the configured operator and audit event.
@@ -127,7 +127,7 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
   - Files: `bharat_arp/workflow.py`, `bharat_arp/audit.py`,
     `tests/test_workflow.py`
 
-- [ ] Task 13: Implement Promise-to-Pay lifecycle and contact outcome recording
+- [x] Task 13: Implement Promise-to-Pay lifecycle and contact outcome recording
   - Acceptance: Promise states, amount/date/source, partial fulfillment, broken
     promises, and cancellation reasons follow the lifecycle contract.
   - Verify: Test early payment, partial payment, late payment, cancellation,
@@ -135,7 +135,7 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
   - Files: `bharat_arp/promises.py`, `bharat_arp/outcomes.py`,
     `tests/test_promises.py`
 
-- [ ] Task 14: Implement payment outcome linkage and pilot metrics
+- [x] Task 14: Implement payment outcome linkage and pilot metrics
   - Acceptance: Metrics follow `docs/measurement-protocol.md` and distinguish
     observed-after from causal claims, with account and INR coverage reported.
   - Verify: Fixture reports cover baseline, priority/non-priority cohorts,
