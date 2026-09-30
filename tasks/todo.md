@@ -20,7 +20,7 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
   - Files: `bharat_arp/receivables.py`, `tests/test_receivables.py`,
     `docs/lifecycles.md`
 
-- [ ] Task 3: Replace the thin invoice vocabulary with the normalized entity
+- [x] Task 3: Replace the thin invoice vocabulary with the normalized entity
   contract
   - Acceptance: Domain terms are defined once; source facts are distinct from
     workflow facts and all required entities are listed.
@@ -28,7 +28,7 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
     or “agent action”.
   - Files: `CONTEXT.md`, `docs/architecture.md`
 
-- [ ] Task 4: Approve the versioned CSV contract, balance formula, and golden
+- [x] Task 4: Approve the versioned CSV contract, balance formula, and golden
   fixtures
   - Acceptance: File set, identity, decimal/currency rules, allocation rules,
     corrections, and expected fixture balances are approved.
@@ -36,7 +36,7 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
     overpayment, duplicate, cancelled, and unresolved examples.
   - Files: `docs/csv-contract.md`, `SPEC.md`
 
-- [ ] Task 5: Define tenant, provenance, audit, retention, deletion, and
+- [x] Task 5: Define tenant, provenance, audit, retention, deletion, and
   data-classification invariants
   - Acceptance: Single-tenant validation mode and future hosted mode are
     explicit; audit redaction, legal hold, export, purge, and maintainer access
@@ -46,13 +46,13 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
 
 ## Checkpoint: Foundation
 
-- [ ] Human approval recorded before implementation continues
-- [ ] Terminology and scope are internally consistent
-- [ ] No live external integration is required for Phase 1
+- [x] Human approval recorded before implementation continues
+- [x] Terminology and scope are internally consistent
+- [x] No live external integration is required for Phase 1
 
 ## Phase 1: CSV-First Evidence Pipeline
 
-- [ ] Task 6: Implement validated CSV import with row-level errors and provenance
+- [x] Task 6: Implement validated CSV import with row-level errors and provenance
   - Acceptance: The seven-file contract is validated for encoding, headers,
     limits, common provenance, required fields, and redacted row errors.
   - Verify: Import clean, malformed, oversized, formula-bearing, duplicate,
