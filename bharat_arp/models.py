@@ -57,3 +57,14 @@ class CreditNote:
     invoice_id: str
     amount_inr: Decimal
     status: Literal["posted", "reversed", "pending", "unknown"]
+
+
+@dataclass(frozen=True)
+class Dispute:
+    ref: SourceRef
+    customer_id: str
+    invoice_id: str
+    category: str
+    status: str
+    opened_at: datetime
+    resolved_at: datetime | None

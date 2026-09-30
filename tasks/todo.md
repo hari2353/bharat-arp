@@ -60,7 +60,7 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
   - Files: `bharat_arp/importing.py`, `bharat_arp/contracts.py`,
     `tests/test_importing.py`
 
-- [ ] Task 7: Implement idempotent normalization of customers, invoices,
+- [x] Task 7: Implement idempotent normalization of customers, invoices,
   payments, payment allocations, credit notes, contacts, and disputes
   - Acceptance: The documented identity key, corrected source versions,
     explicit voids, and partial batch acceptance rules are enforced.
@@ -69,7 +69,7 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
   - Files: `bharat_arp/normalization.py`, `bharat_arp/models.py`,
     `tests/test_normalization.py`
 
-- [ ] Task 8: Implement unresolved-balance and data-quality exception reporting
+- [x] Task 8: Implement unresolved-balance and data-quality exception reporting
   - Acceptance: INR decimal arithmetic calculates gross due, valid allocations,
     outstanding balance, overpayment, and unresolved states without guessing.
   - Verify: Golden fixtures cover paid, partial, credit note, overpayment,
@@ -79,10 +79,10 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
 
 ## Checkpoint: Evidence
 
-- [ ] Clean, duplicate, ambiguous, partial-payment, credit-note, stale, and
+- [x] Clean, duplicate, ambiguous, partial-payment, credit-note, stale, and
   already-paid fixtures pass
-- [ ] Re-import is idempotent
-- [ ] No unresolved balance enters decisioning
+- [x] Re-import is idempotent
+- [x] No unresolved balance enters decisioning
 
 ## Phase 2: Collections Decisioning
 
