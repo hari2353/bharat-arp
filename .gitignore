@@ -12,3 +12,4 @@ build/
 examples/demo/workspace/
 examples/demo/exported/
 examples/demo/DEMO-1/
+examples/demo/.purged/

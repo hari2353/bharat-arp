@@ -29,6 +29,7 @@ class WorkflowProposal:
     status: str
     requires_approval: bool
     executes_side_effect: bool
+    rejection_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,13 @@ class PromiseToPay:
     due_on: str
     source: str
     status: str
+    fulfilled_amount: Decimal = Decimal("0.00")
+    fulfilment_source: str | None = None
+    cancellation_reason: str | None = None
+
+    @property
+    def remaining_amount(self) -> Decimal:
+        return max(self.amount - self.fulfilled_amount, Decimal("0.00"))
 
 
 @dataclass(frozen=True)
@@ -46,6 +54,7 @@ class CollectionCase:
     case_id: str
     customer_id: str
     status: str
+    assignee_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -110,16 +119,44 @@ class WorkflowStore:
         )
         self._audit("proposal_staled", proposal_id)
 
-    def decide_proposal(self, proposal_id: str, *, decision: str) -> WorkflowProposal:
+    def decide_proposal(
+        self, proposal_id: str, *, decision: str, reason: str | None = None
+    ) -> WorkflowProposal:
         proposal = self._get_proposal(proposal_id)
-        if proposal.status != "proposed":
+        if proposal.status not in {"proposed", "edited"}:
             raise WorkflowError(f"proposal is not in a decidable state: {proposal.status}")
         if decision not in {"approve", "reject"}:
             raise WorkflowError("unsupported proposal decision")
+        if decision == "reject" and not reason:
+            raise WorkflowError("rejection reason is required")
         status = "approved" if decision == "approve" else "rejected"
-        updated = WorkflowProposal(**{**proposal.__dict__, "status": status})
+        updated = WorkflowProposal(
+            **{
+                **proposal.__dict__,
+                "status": status,
+                "rejection_reason": reason if decision == "reject" else None,
+            }
+        )
         self._proposals[proposal_id] = updated
         self._audit(f"proposal_{status}", proposal_id)
+        return updated
+
+    def edit_proposal(
+        self, proposal_id: str, *, action: str, evidence_fingerprint: str
+    ) -> WorkflowProposal:
+        proposal = self._get_proposal(proposal_id)
+        if proposal.status not in {"proposed", "edited"}:
+            raise WorkflowError("only proposed proposals can be edited")
+        updated = WorkflowProposal(
+            **{
+                **proposal.__dict__,
+                "action": action,
+                "evidence_fingerprint": evidence_fingerprint,
+                "status": "edited",
+            }
+        )
+        self._proposals[proposal_id] = updated
+        self._audit("proposal_edited", proposal_id)
         return updated
 
     def record_promise(
@@ -148,13 +185,27 @@ class WorkflowStore:
         self._audit("case_created", case_id)
         return case
 
+    def assign_case(self, case_id: str, *, assignee_id: str) -> CollectionCase:
+        case = self._cases.get(case_id)
+        if case is None:
+            raise WorkflowError("case not found")
+        if case.status != "open":
+            raise WorkflowError("only open cases can be assigned")
+        if not assignee_id.strip():
+            raise WorkflowError("assignee is required")
+        updated = CollectionCase(case.case_id, case.customer_id, "assigned", assignee_id)
+        self._cases[case_id] = updated
+        self._audit("case_assigned", case_id)
+        return updated
+
     def transition_case(self, case_id: str, status: str) -> CollectionCase:
         case = self._cases.get(case_id)
         if case is None:
             raise WorkflowError("case not found")
         valid = {
             "new": {"open"},
-            "open": {"in_progress", "closed"},
+            "open": {"assigned"},
+            "assigned": {"in_progress"},
             "in_progress": {"resolved", "closed"},
             "resolved": {"reopened"},
             "closed": {"reopened"},
@@ -162,7 +213,8 @@ class WorkflowStore:
         }
         if status not in valid.get(case.status, set()):
             raise WorkflowError("invalid case transition")
-        updated = CollectionCase(case.case_id, case.customer_id, status)
+        assignee_id = None if status == "reopened" else case.assignee_id
+        updated = CollectionCase(case.case_id, case.customer_id, status, assignee_id)
         self._cases[case_id] = updated
         self._audit(f"case_{status}", case_id)
         return updated
@@ -177,17 +229,54 @@ class WorkflowStore:
         self._audit("outcome_recorded", case_id)
         return recorded
 
-    def transition_promise(self, promise_id: str, status: str) -> PromiseToPay:
+    def transition_promise(
+        self, promise_id: str, status: str, *, cancellation_reason: str | None = None
+    ) -> PromiseToPay:
         promise = self._promises.get(promise_id)
         if promise is None:
             raise WorkflowError("promise not found")
         valid = {
             "proposed": {"accepted", "rejected"},
             "accepted": {"fulfilled", "broken", "cancelled"},
+            "partial": {"fulfilled", "broken", "cancelled"},
         }
         if status not in valid.get(promise.status, set()):
             raise WorkflowError("invalid promise transition")
-        updated = PromiseToPay(**{**promise.__dict__, "status": status})
+        if status == "cancelled" and not cancellation_reason:
+            raise WorkflowError("cancellation reason is required")
+        updated = PromiseToPay(
+            **{
+                **promise.__dict__,
+                "status": status,
+                "cancellation_reason": cancellation_reason
+                if status == "cancelled"
+                else promise.cancellation_reason,
+            }
+        )
+        self._promises[promise_id] = updated
+        self._audit(f"promise_{status}", promise_id)
+        return updated
+
+    def record_promise_fulfilment(
+        self, promise_id: str, *, amount: Decimal, source: str
+    ) -> PromiseToPay:
+        promise = self._promises.get(promise_id)
+        if promise is None:
+            raise WorkflowError("promise not found")
+        if promise.status not in {"accepted", "partial"}:
+            raise WorkflowError("promise is not open for fulfilment")
+        if amount <= 0 or amount > promise.remaining_amount:
+            raise WorkflowError("fulfilment amount exceeds remaining promise")
+        fulfilled_amount = promise.fulfilled_amount + amount
+        status = "fulfilled" if fulfilled_amount == promise.amount else "partial"
+        updated = PromiseToPay(
+            **{
+                **promise.__dict__,
+                "fulfilled_amount": fulfilled_amount,
+                "fulfilment_source": source,
+                "status": status,
+            }
+        )
         self._promises[promise_id] = updated
         self._audit(f"promise_{status}", promise_id)
         return updated

@@ -78,6 +78,7 @@ def test_collection_case_follows_open_progress_and_resolution_lifecycle():
     assert case.status == "new"
 
     store.transition_case("CASE-1", "open")
+    store.assign_case("CASE-1", assignee_id="operator-1")
     store.transition_case("CASE-1", "in_progress")
     resolved = store.transition_case("CASE-1", "resolved")
 
@@ -93,3 +94,52 @@ def test_invalid_case_transition_does_not_mutate_state():
         store.transition_case("CASE-1", "resolved")
 
     assert store.cases()[0].status == "new"
+
+
+def test_proposal_can_be_edited_before_approval_and_rejection_requires_reason():
+    store = WorkflowStore(tenant_id="TENANT-1", operator_id="operator-1")
+    store.create_proposal(
+        proposal_id="PROP-1",
+        customer_id="CUST-1",
+        policy_version="v1",
+        evidence_fingerprint="evidence-1",
+        action="review_required",
+    )
+
+    edited = store.edit_proposal(
+        "PROP-1", action="draft_customer_follow_up", evidence_fingerprint="evidence-2"
+    )
+    assert edited.status == "edited"
+    assert edited.action == "draft_customer_follow_up"
+    with pytest.raises(WorkflowError, match="reason"):
+        store.decide_proposal("PROP-1", decision="reject")
+
+    rejected = store.decide_proposal(
+        "PROP-1", decision="reject", reason="dispute remains unresolved"
+    )
+    assert rejected.status == "rejected"
+    assert rejected.rejection_reason == "dispute remains unresolved"
+
+
+def test_partial_promise_fulfilment_tracks_remaining_amount():
+    store = WorkflowStore(tenant_id="TENANT-1", operator_id="operator-1")
+    store.record_promise(
+        promise_id="PROMISE-1",
+        customer_id="CUST-1",
+        amount=Decimal("125000.00"),
+        due_on="2026-10-15",
+        source="phone_call",
+    )
+    store.transition_promise("PROMISE-1", "accepted")
+
+    partial = store.record_promise_fulfilment(
+        "PROMISE-1", amount=Decimal("50000.00"), source="bank_export"
+    )
+    assert partial.status == "partial"
+    assert partial.fulfilled_amount == Decimal("50000.00")
+    assert partial.remaining_amount == Decimal("75000.00")
+    fulfilled = store.record_promise_fulfilment(
+        "PROMISE-1", amount=Decimal("75000.00"), source="bank_export"
+    )
+    assert fulfilled.status == "fulfilled"
+    assert fulfilled.remaining_amount == Decimal("0.00")

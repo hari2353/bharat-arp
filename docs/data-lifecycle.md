@@ -42,5 +42,8 @@ for the held records.
 - Generated CSV exports must neutralize spreadsheet formulas in text fields.
 - Export and deletion must cover source, normalized, workflow, raw-import, and
   audit-derived records according to the active retention policy.
+- The local `retention apply` command expires raw import batches older than the
+  90-day pilot default and removes their persisted raw rows; active legal holds
+  fail closed until an authorized operator removes the hold.
 - Pilot data processing, operator access, incident handling, and subprocessors
   require customer agreement and legal review before production use.

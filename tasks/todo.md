@@ -159,12 +159,12 @@ owner approves `SPEC.md`, `CAPABILITY-MAP.md`, and `tasks/plan.md`.
 
 ## Offline MVP Follow-ups Before Pilot Use
 
-- [ ] Extend metrics from persisted source/workflow facts to full weekly
+- [x] Extend metrics from persisted source/workflow facts to full weekly
   baseline, priority/non-priority cohort, ageing, and payment-attribution
   snapshots.
-- [ ] Implement retention-policy enforcement, legal holds, purge tombstones,
+- [x] Implement retention-policy enforcement, legal holds, purge tombstones,
   and complete derived-record export semantics.
-- [ ] Add remaining lifecycle operations for assignment, proposal edits,
+- [x] Add remaining lifecycle operations for assignment, proposal edits,
   rejection reasons, and partial Promise-to-Pay fulfilment.
 
 ## Phase 4: Validation and Integration Gate

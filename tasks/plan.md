@@ -40,9 +40,8 @@ collections-decisioning ---- promise-to-pay
 ## Task List
 
 Tasks 1-15 have an executable offline slice. The core import, decisioning,
-workflow, persistence, queue report, and synthetic demo paths are verified;
-the full measurement-protocol and legal-hold retention extensions remain
-explicit follow-up work. Tasks 16-18 are the business validation and
+workflow, persistence, queue report, metrics snapshots, lifecycle controls, and
+synthetic demo paths are verified. Tasks 16-18 are the business validation and
 integration gate; they require real pilot evidence and must not be replaced by
 more prototype integrations.
 
@@ -102,9 +101,8 @@ more prototype integrations.
 - [x] Task 15: Implement CLI/report interface, export, and tenant purge
 
   The current offline slice includes CLI commands, deterministic text/CSV/HTML
-  queue reports, formula-safe audit export, and tenant purge. Full
-  retention-policy enforcement, legal holds, tombstones, and metrics derived
-  from weekly pilot snapshots remain follow-up work before production use.
+  queue reports, formula-safe derived export, policy-aware legal holds and purge
+  tombstones, lifecycle operations, and persisted weekly metrics snapshots.
 
 ### Checkpoint: Pilot Readiness
 

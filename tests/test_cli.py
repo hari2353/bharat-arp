@@ -69,7 +69,9 @@ def test_cli_proposal_decision_and_promise_record_write_audit(tmp_path: Path, ca
     state = json.loads((workspace / "TENANT-1" / "state.json").read_text())
     assert state["proposals"][0]["status"] == "approved"
     assert state["promises"][0]["status"] == "proposed"
-    assert [event["action"] for event in state["audit"]] == [
+    assert [
+        event["action"] for event in state["audit"] if not event["action"].startswith("command_")
+    ] == [
         "proposal_created",
         "proposal_approved",
         "promise_recorded",
@@ -100,7 +102,7 @@ def test_cli_export_neutralizes_formula_values_and_purge_removes_tenant(tmp_path
     )
     state_path.write_text(json.dumps(state))
 
-    output = tmp_path / "export"
+    output = workspace / "export"
     assert (
         run(
             [
@@ -120,6 +122,126 @@ def test_cli_export_neutralizes_formula_values_and_purge_removes_tenant(tmp_path
     assert run(["--workspace", str(workspace), "purge", "--tenant", "TENANT-1"]) == 2
     assert run(["--workspace", str(workspace), "purge", "--tenant", "TENANT-1", "--confirm"]) == 0
     assert not (workspace / "TENANT-1").exists()
+
+
+def test_cli_legal_hold_blocks_purge_and_purge_writes_tombstone(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
+
+    assert run(
+        [
+            "--workspace",
+            str(workspace),
+            "hold",
+            "add",
+            "--tenant",
+            "TENANT-1",
+            "--hold",
+            "HOLD-1",
+            "--reason",
+            "customer dispute",
+        ]
+    ) == 0
+    assert run(
+        ["--workspace", str(workspace), "purge", "--tenant", "TENANT-1", "--confirm"]
+    ) == 2
+    assert (workspace / "TENANT-1" / "state.json").exists()
+
+    assert run(
+        [
+            "--workspace",
+            str(workspace),
+            "hold",
+            "remove",
+            "--tenant",
+            "TENANT-1",
+            "--hold",
+            "HOLD-1",
+        ]
+    ) == 0
+    assert run(
+        [
+            "--workspace",
+            str(workspace),
+            "purge",
+            "--tenant",
+            "TENANT-1",
+            "--confirm",
+            "--reason",
+            "pilot ended",
+        ]
+    ) == 0
+    tombstone = workspace / ".purged" / "TENANT-1.json"
+    assert not (workspace / "TENANT-1").exists()
+    tombstone_state = json.loads(tombstone.read_text())
+    assert tombstone_state["tenant_id"] == "DELETED-TENANT-1"
+    assert tombstone_state["purge"]["reason"] == "pilot ended"
+    assert tombstone_state["audit"][0]["tenant_id"] == "DELETED-TENANT-1"
+
+
+def test_cli_export_rejects_path_outside_workspace(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
+
+    assert run(
+        [
+            "--workspace",
+            str(workspace),
+            "export",
+            "--tenant",
+            "TENANT-1",
+            "--output",
+            str(tmp_path / "outside"),
+        ]
+    ) == 2
+
+
+def test_cli_rejects_tenant_state_mismatch(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
+    state_path = workspace / "TENANT-1" / "state.json"
+    state = json.loads(state_path.read_text())
+    state["tenant_id"] = "TENANT-2"
+    state_path.write_text(json.dumps(state))
+
+    assert run(["--workspace", str(workspace), "metrics", "--tenant", "TENANT-1"]) == 2
+
+
+def test_cli_retention_expires_raw_import_batches_but_respects_hold(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
+    state_path = workspace / "TENANT-1" / "state.json"
+    state = json.loads(state_path.read_text())
+    state["raw_imports"] = [
+        {"batch": "OLD", "imported_at": "2026-01-01T00:00:00+00:00", "rows": {}}
+    ]
+    state["source_rows"] = {
+        "invoices": [{"import_batch_id": "OLD", "source_record_id": "INV-1"}],
+        "customers": [{"import_batch_id": "NEW", "source_record_id": "CUST-1"}],
+    }
+    state["holds"] = [{"hold_id": "HOLD-1", "reason": "review", "active": True}]
+    state_path.write_text(json.dumps(state))
+
+    assert run(
+        [
+            "--workspace", str(workspace), "retention", "apply", "--tenant", "TENANT-1",
+            "--as-of", "2026-10-03",
+        ]
+    ) == 2
+    assert json.loads(state_path.read_text())["raw_imports"]
+
+    state["holds"][0]["active"] = False
+    state_path.write_text(json.dumps(state))
+    assert run(
+        [
+            "--workspace", str(workspace), "retention", "apply", "--tenant", "TENANT-1",
+            "--as-of", "2026-10-03",
+        ]
+    ) == 0
+    retained_state = json.loads(state_path.read_text())
+    assert retained_state["raw_imports"] == []
+    assert retained_state["source_rows"]["invoices"] == []
+    assert len(retained_state["source_rows"]["customers"]) == 1
 
 
 def test_cli_case_outcome_and_metrics_are_persisted(tmp_path: Path, capsys):
@@ -196,6 +318,29 @@ def test_cli_metrics_accepts_window_and_json_format(tmp_path: Path, capsys):
     assert '"from": "2026-09-01"' in capsys.readouterr().out
 
 
+def test_cli_metrics_persists_idempotent_weekly_snapshot(tmp_path: Path, capsys):
+    workspace = tmp_path / "workspace"
+    run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
+
+    assert run(
+        [
+            "--workspace", str(workspace), "metrics", "--tenant", "TENANT-1",
+            "--snapshot", "2026-09-30", "--format", "json",
+        ]
+    ) == 0
+    assert run(
+        [
+            "--workspace", str(workspace), "metrics", "--tenant", "TENANT-1",
+            "--snapshot", "2026-09-30", "--format", "json",
+        ]
+    ) == 0
+
+    state = json.loads((workspace / "TENANT-1" / "state.json").read_text())
+    assert len(state["snapshots"]) == 1
+    assert state["snapshots"][0]["as_of"] == "2026-09-30"
+    assert "snapshot" in capsys.readouterr().out
+
+
 def test_cli_state_round_trip_preserves_workflow_statuses():
     store = WorkflowStore(tenant_id="TENANT-1", operator_id="pilot_operator")
     store.create_proposal(
@@ -217,6 +362,7 @@ def test_cli_state_round_trip_preserves_workflow_statuses():
     store.transition_promise("PROMISE-1", "broken")
     store.create_case(case_id="CASE-1", customer_id="CUST-1")
     store.transition_case("CASE-1", "open")
+    store.assign_case("CASE-1", assignee_id="pilot_operator")
     store.transition_case("CASE-1", "in_progress")
     store.transition_case("CASE-1", "resolved")
 
@@ -225,6 +371,76 @@ def test_cli_state_round_trip_preserves_workflow_statuses():
     assert restored.proposals()[0].status == "stale"
     assert restored.promises()[0].status == "broken"
     assert restored.cases()[0].status == "resolved"
+
+
+def test_cli_supports_assignment_edits_rejection_reasons_and_partial_fulfilment(
+    tmp_path: Path, capsys
+):
+    workspace = tmp_path / "workspace"
+    run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
+    run(
+        [
+            "--workspace", str(workspace), "case", "create", "--tenant", "TENANT-1",
+            "--case", "CASE-1", "--customer", "CUST-1",
+        ]
+    )
+    run(
+        [
+            "--workspace", str(workspace), "case", "transition", "--tenant", "TENANT-1",
+            "--case", "CASE-1", "--status", "open",
+        ]
+    )
+    run(
+        [
+            "--workspace", str(workspace), "case", "assign", "--tenant", "TENANT-1",
+            "--case", "CASE-1", "--assignee", "operator-2",
+        ]
+    )
+    run(
+        [
+            "--workspace", str(workspace), "proposal", "create", "--tenant", "TENANT-1",
+            "--proposal", "PROP-1", "--customer", "CUST-1",
+        ]
+    )
+    run(
+        [
+            "--workspace", str(workspace), "proposal", "edit", "--tenant", "TENANT-1",
+            "--proposal", "PROP-1", "--action", "review_required", "--evidence", "e2",
+        ]
+    )
+    run(
+        [
+            "--workspace", str(workspace), "proposal", "decide", "--tenant", "TENANT-1",
+            "--proposal", "PROP-1", "--decision", "reject", "--reason", "not ready",
+        ]
+    )
+    run(
+        [
+            "--workspace", str(workspace), "promise", "record", "--tenant", "TENANT-1",
+            "--promise", "PROMISE-1", "--customer", "CUST-1", "--amount", "100.00",
+            "--due", "2026-10-15",
+        ]
+    )
+    run(
+        [
+            "--workspace", str(workspace), "promise", "transition", "--tenant", "TENANT-1",
+            "--promise", "PROMISE-1", "--status", "accepted",
+        ]
+    )
+    run(
+        [
+            "--workspace", str(workspace), "promise", "fulfil", "--tenant", "TENANT-1",
+            "--promise", "PROMISE-1", "--amount", "40.00",
+        ]
+    )
+
+    state = json.loads((workspace / "TENANT-1" / "state.json").read_text())
+    assert state["cases"][0]["status"] == "assigned"
+    assert state["cases"][0]["assignee_id"] == "operator-2"
+    assert state["proposals"][0]["rejection_reason"] == "not ready"
+    assert state["promises"][0]["status"] == "partial"
+    assert state["promises"][0]["fulfilled_amount"] == "40.00"
+    assert "partial" in capsys.readouterr().out
 
 
 def test_cli_import_and_queue_rank_imported_customer_accounts(tmp_path: Path, capsys):

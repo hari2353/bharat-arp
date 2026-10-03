@@ -33,6 +33,26 @@ class PilotReport:
     attribution_language: str
 
 
+@dataclass(frozen=True)
+class WeeklySnapshot:
+    tenant_id: str
+    as_of: date
+    priority_accounts: int
+    non_priority_accounts: int
+    priority_eligible_exposure: Decimal
+    non_priority_exposure: Decimal
+    ageing_30_plus_accounts: int
+    ageing_60_plus_accounts: int
+    ageing_90_plus_accounts: int
+    decision_eligible_accounts: int
+    decision_eligible_exposure: Decimal
+    in_flight_payment_count: int
+    promise_fulfilled: int
+    promise_partial: int
+    promise_broken: int
+    attribution_language: str = "payment observed after proposal"
+
+
 def measure_pilot(
     measurements: list[AccountMeasurement],
     *,
@@ -77,6 +97,44 @@ def measure_pilot(
         fulfilled_promises=fulfilled,
         broken_promises=broken,
         attribution_language="payment observed after proposal",
+    )
+
+
+def snapshot_pilot(
+    tenant_id: str, *, as_of: date, measurements: list[AccountMeasurement]
+) -> WeeklySnapshot:
+    priority = [item for item in measurements if item.priority]
+    non_priority = [item for item in measurements if not item.priority]
+    eligible = [item for item in measurements if item.decision_eligible]
+    return WeeklySnapshot(
+        tenant_id=tenant_id,
+        as_of=as_of,
+        priority_accounts=len(priority),
+        non_priority_accounts=len(non_priority),
+        priority_eligible_exposure=sum(
+            (item.opening_outstanding for item in priority if item.decision_eligible),
+            Decimal("0.00"),
+        ),
+        non_priority_exposure=sum(
+            (item.opening_outstanding for item in non_priority), Decimal("0.00")
+        ),
+        ageing_30_plus_accounts=sum(
+            (as_of - item.due_on).days >= 30 for item in measurements
+        ),
+        ageing_60_plus_accounts=sum(
+            (as_of - item.due_on).days >= 60 for item in measurements
+        ),
+        ageing_90_plus_accounts=sum(
+            (as_of - item.due_on).days >= 90 for item in measurements
+        ),
+        decision_eligible_accounts=len(eligible),
+        decision_eligible_exposure=sum(
+            (item.opening_outstanding for item in eligible), Decimal("0.00")
+        ),
+        in_flight_payment_count=sum(item.payment_in_flight for item in measurements),
+        promise_fulfilled=sum(item.promise_status == "fulfilled" for item in measurements),
+        promise_partial=sum(item.promise_status == "partial" for item in measurements),
+        promise_broken=sum(item.promise_status == "broken" for item in measurements),
     )
 
 

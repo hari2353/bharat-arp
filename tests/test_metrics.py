@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
-from bharat_arp.metrics import AccountMeasurement, measure_pilot
+from bharat_arp.metrics import AccountMeasurement, measure_pilot, snapshot_pilot
 
 
 def measurement(**overrides):
@@ -68,3 +68,30 @@ def test_action_latency_counts_only_actions_within_one_business_day():
     )
 
     assert report.action_within_one_business_day == 1
+
+
+def test_weekly_snapshot_reports_cohorts_ageing_and_eligibility():
+    snapshot = snapshot_pilot(
+        "TENANT-1",
+        as_of=date(2026, 9, 30),
+        measurements=[
+            measurement(),
+            measurement(
+                customer_id="CUST-2",
+                priority=False,
+                opening_outstanding=Decimal("20000.00"),
+                closing_outstanding=Decimal("20000.00"),
+                due_on=date(2026, 7, 1),
+                decision_eligible=False,
+                payment_received_at=None,
+                promise_status=None,
+            ),
+        ],
+    )
+
+    assert snapshot.priority_accounts == 1
+    assert snapshot.non_priority_accounts == 1
+    assert snapshot.priority_eligible_exposure == Decimal("100000.00")
+    assert snapshot.non_priority_exposure == Decimal("20000.00")
+    assert snapshot.ageing_60_plus_accounts == 1
+    assert snapshot.promise_fulfilled == 1
