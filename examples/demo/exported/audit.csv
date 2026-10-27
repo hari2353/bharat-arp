@@ -1,0 +1,3 @@
+sequence,tenant_id,actor_id,action,object_id,occurred_at
+1,DEMO-1,pilot_operator,source_batch_imported,DEMO-BATCH-1,2026-10-03T11:11:17.468990+05:30
+2,DEMO-1,pilot_operator,metrics_snapshot_created,2026-09-30,2026-10-03T11:11:18.371220+05:30

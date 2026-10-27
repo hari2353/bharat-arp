@@ -1,0 +1,186 @@
+{
+  "audit": [
+    {
+      "action": "source_batch_imported",
+      "actor_id": "pilot_operator",
+      "object_id": "DEMO-BATCH-1",
+      "occurred_at": "2026-10-03T11:11:17.468990+05:30",
+      "sequence": 1,
+      "tenant_id": "DEMO-1"
+    },
+    {
+      "action": "metrics_snapshot_created",
+      "actor_id": "pilot_operator",
+      "object_id": "2026-09-30",
+      "occurred_at": "2026-10-03T11:11:18.371220+05:30",
+      "sequence": 2,
+      "tenant_id": "DEMO-1"
+    }
+  ],
+  "cases": [],
+  "holds": [],
+  "imports": [
+    {
+      "batch": "DEMO-BATCH-1",
+      "summaries": [
+        {
+          "record_type": "customers",
+          "rows": 1
+        },
+        {
+          "record_type": "contacts",
+          "rows": 1
+        },
+        {
+          "record_type": "invoices",
+          "rows": 1
+        },
+        {
+          "record_type": "payments",
+          "rows": 1
+        },
+        {
+          "record_type": "payment_allocations",
+          "rows": 1
+        },
+        {
+          "record_type": "credit_notes",
+          "rows": 1
+        },
+        {
+          "record_type": "disputes",
+          "rows": 1
+        }
+      ]
+    }
+  ],
+  "operator_id": "pilot_operator",
+  "outcomes": [],
+  "promises": [],
+  "proposals": [],
+  "schema_version": 2,
+  "snapshots": [
+    {
+      "ageing_30_plus_accounts": 1,
+      "ageing_60_plus_accounts": 1,
+      "ageing_90_plus_accounts": 0,
+      "as_of": "2026-09-30",
+      "attribution_language": "payment observed after proposal",
+      "decision_eligible_accounts": 1,
+      "decision_eligible_exposure": "100000.00",
+      "in_flight_payment_count": 0,
+      "non_priority_accounts": 0,
+      "non_priority_exposure": "0.00",
+      "priority_accounts": 1,
+      "priority_eligible_exposure": "100000.00",
+      "promise_broken": 0,
+      "promise_fulfilled": 0,
+      "promise_partial": 0,
+      "tenant_id": "DEMO-1"
+    }
+  ],
+  "source_rows": {
+    "contacts": [
+      {
+        "display_name": "Demo Payables",
+        "email": "demo@example.invalid",
+        "email_permission": "unknown",
+        "import_batch_id": "DEMO-BATCH-1",
+        "opted_out": "false",
+        "permission_observed_at": "2026-09-30T10:00:00+05:30",
+        "phone": "+910000000000",
+        "role": "accounts_payable",
+        "source_contact_id": "DEMO-CONTACT-1",
+        "source_customer_id": "DEMO-CUST-1",
+        "source_record_id": "DEMO-CONTACT-1",
+        "source_system": "synthetic",
+        "source_updated_at": "2026-09-30T10:00:00+05:30",
+        "tenant_id": "DEMO-1",
+        "whatsapp_permission": "unknown"
+      }
+    ],
+    "credit_notes": [
+      {
+        "amount_inr": "0.00",
+        "credit_date": "2026-08-15",
+        "import_batch_id": "DEMO-BATCH-1",
+        "source_credit_note_id": "DEMO-CN-1",
+        "source_invoice_id": "DEMO-INV-1",
+        "source_record_id": "DEMO-CN-1",
+        "source_system": "synthetic",
+        "source_updated_at": "2026-09-30T10:00:00+05:30",
+        "status": "posted",
+        "tenant_id": "DEMO-1"
+      }
+    ],
+    "customers": [
+      {
+        "import_batch_id": "DEMO-BATCH-1",
+        "legal_name": "Demo Engineering",
+        "source_customer_id": "DEMO-CUST-1",
+        "source_record_id": "DEMO-CUST-1",
+        "source_system": "synthetic",
+        "source_updated_at": "2026-09-30T10:00:00+05:30",
+        "status": "active",
+        "tenant_id": "DEMO-1"
+      }
+    ],
+    "disputes": [
+      {
+        "category": "none",
+        "import_batch_id": "DEMO-BATCH-1",
+        "opened_at": "2026-08-01T10:00:00+05:30",
+        "resolved_at": "2026-08-02T10:00:00+05:30",
+        "source_customer_id": "DEMO-CUST-1",
+        "source_dispute_id": "DEMO-DISP-1",
+        "source_invoice_id": "DEMO-INV-1",
+        "source_record_id": "DEMO-DISP-1",
+        "source_system": "synthetic",
+        "source_updated_at": "2026-09-30T10:00:00+05:30",
+        "status": "resolved",
+        "tenant_id": "DEMO-1"
+      }
+    ],
+    "invoices": [
+      {
+        "amount_inr": "125000.00",
+        "due_date": "2026-08-01",
+        "import_batch_id": "DEMO-BATCH-1",
+        "invoice_date": "2026-07-01",
+        "source_customer_id": "DEMO-CUST-1",
+        "source_invoice_id": "DEMO-INV-1",
+        "source_record_id": "DEMO-INV-1",
+        "source_system": "synthetic",
+        "source_updated_at": "2026-09-30T10:00:00+05:30",
+        "status": "overdue",
+        "tenant_id": "DEMO-1"
+      }
+    ],
+    "payment_allocations": [
+      {
+        "allocated_amount_inr": "25000.00",
+        "import_batch_id": "DEMO-BATCH-1",
+        "source_invoice_id": "DEMO-INV-1",
+        "source_payment_id": "DEMO-PAY-1",
+        "source_record_id": "DEMO-ALLOC-1",
+        "source_system": "synthetic",
+        "source_updated_at": "2026-09-30T10:00:00+05:30",
+        "tenant_id": "DEMO-1"
+      }
+    ],
+    "payments": [
+      {
+        "amount_inr": "25000.00",
+        "import_batch_id": "DEMO-BATCH-1",
+        "payment_date": "2026-09-01",
+        "source_payment_id": "DEMO-PAY-1",
+        "source_record_id": "DEMO-PAY-1",
+        "source_system": "synthetic",
+        "source_updated_at": "2026-09-30T10:00:00+05:30",
+        "status": "posted",
+        "tenant_id": "DEMO-1"
+      }
+    ]
+  },
+  "tenant_id": "DEMO-1"
+}
