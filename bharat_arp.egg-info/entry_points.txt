@@ -1,0 +1,2 @@
+[console_scripts]
+bharat-arp = bharat_arp.cli:run
