@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
+from .autonomy import AutonomyState, gate_action
 from .decisioning import RankedAccount
 from .receivables import CommunicationEligibility
 
@@ -21,9 +22,15 @@ class AccountProposal:
 
 
 def propose_account_action(
-    ranked_account: RankedAccount, *, contact: CommunicationEligibility | None
+    ranked_account: RankedAccount, *, contact: CommunicationEligibility | None,
+    autonomy: AutonomyState | None = None,
 ) -> AccountProposal:
-    """Create a proposal; this function cannot send or mutate external records."""
+    """Create a proposal; this function cannot send or mutate external records.
+
+    `autonomy` (optional) carries the agent's earned authority level. Customer-facing
+    actions (draft_customer_follow_up) always require human approval per SPEC;
+    autonomy only affects whether an internal no-action decision is auto-approved.
+    """
     if not ranked_account.eligible:
         return AccountProposal(
             source_customer_id=ranked_account.customer_id,

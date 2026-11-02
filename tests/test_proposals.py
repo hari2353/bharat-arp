@@ -67,3 +67,16 @@ def test_ineligible_account_produces_no_action():
 
     assert proposal.action == "no_action"
     assert proposal.requires_approval is False
+
+
+def test_propose_accepts_autonomy_param():
+    from bharat_arp.autonomy import AutonomyState, AutonomyLevel, record_outcome
+    st = AutonomyState()
+    for _ in range(8):
+        record_outcome(st, True)
+    assert st.level == AutonomyLevel.AUTO
+    p = propose_account_action(ranked(), contact=contact("eligible"), autonomy=st)
+    # Customer-facing drafts always require approval per SPEC, even at AUTO.
+    assert p.requires_approval is True
+    assert p.action == "draft_customer_follow_up"
+
