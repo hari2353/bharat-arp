@@ -11,7 +11,8 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from .decisioning import AccountExposure, CustomerAccount, rank_accounts
+from .decisioning import AccountExposure, CustomerAccount, RankedAccount, rank_accounts
+from .msmed import MsmedConfig, msmed_position
 from .importing import validate_csv_text
 from .metrics import AccountMeasurement, snapshot_pilot
 from .normalization import NormalizedSourceStore
@@ -56,6 +57,8 @@ def run(argv: list[str] | None = None) -> int:
         elif args.command == "retention":
             _run_retention(args, state)
             _save_state(args.workspace, args.tenant, state)
+        elif args.command == "msmed":
+            _run_msmed(args, state)
         elif args.command == "metrics":
             _run_metrics(args, state)
         elif args.command == "export":
@@ -165,6 +168,14 @@ def _parser() -> argparse.ArgumentParser:
     outcome_record.add_argument("--tenant", required=True)
     outcome_record.add_argument("--case", required=True)
     outcome_record.add_argument("--outcome", required=True)
+
+    msmed = subparsers.add_parser("msmed")
+    msmed.add_argument("--tenant", required=True)
+    msmed.add_argument("--as-of", default="2026-09-30")
+    msmed.add_argument("--bank-rate", default="6.5")
+    msmed.add_argument("--terms-days", type=int, default=45)
+    msmed.add_argument("--notice-days", type=int, default=15)
+    msmed.add_argument("--format", choices=("text", "csv"), default="text")
 
     metrics = subparsers.add_parser("metrics")
     metrics.add_argument("--tenant", required=True)
@@ -480,18 +491,11 @@ def _run_import(args: argparse.Namespace, state: dict) -> None:
     print(f"imported batch {args.batch}")
 
 
-def _run_queue(args: argparse.Namespace, state: dict) -> None:
-    source_rows = state.get("source_rows", {})
-    if not source_rows:
-        if args.format == "csv":
-            print("customer_id,legal_name,outstanding_inr,score,overdue_days,ageing_bucket,eligible,policy_version,explanation,missing_inputs")
-        elif args.format == "html":
-            print(render_queue_html(()), end="")
-        else:
-            print(f"tenant={args.tenant} queue=empty")
-        return
+def _ranked_accounts(args: argparse.Namespace, state: dict) -> tuple[RankedAccount, ...]:
+    """Build CustomerAccounts from stored source rows and rank them. Shared
+    by the queue and msmed commands so both use the same evidence path."""
     store = NormalizedSourceStore(tenant_id=args.tenant)
-    for record_type, rows in source_rows.items():
+    for record_type, rows in state.get("source_rows", {}).items():
         result = store.upsert_rows(record_type, rows)
         if result.errors:
             raise ValueError(f"stored source rows have {len(result.errors)} normalization errors")
@@ -522,14 +526,26 @@ def _run_queue(args: argparse.Namespace, state: dict) -> None:
             )
         )
         exceptions.setdefault(invoice.customer_id, []).extend(result.exceptions)
+    # invoice-level dispute ids: containment (decisioning) drops only the
+    # contested lines; the boolean stays for the legacy review flow
+    disputed_invoices = {
+        item.invoice_id for item in disputes if item.status == "open"
+    }
     open_disputes = {item.customer_id for item in disputes if item.status == "open"}
-    ranked = rank_accounts(
+    invoice_customers = {
+        invoice.ref.source_record_id: invoice.customer_id for invoice in invoices
+    }
+    return rank_accounts(
         [
             CustomerAccount(
                 customer_id=customer_id,
                 legal_name=names.get(customer_id, customer_id),
                 exposures=tuple(exposures),
                 unresolved_dispute=customer_id in open_disputes,
+                disputed_invoice_ids=frozenset(
+                    inv for inv in disputed_invoices
+                    if invoice_customers.get(inv) == customer_id
+                ),
                 data_quality_exceptions=tuple(sorted(set(exceptions.get(customer_id, [])))),
             )
             for customer_id, exposures in accounts.items()
@@ -537,12 +553,61 @@ def _run_queue(args: argparse.Namespace, state: dict) -> None:
         as_of=date.fromisoformat(args.as_of),
         policy_version="v1",
     )
+
+
+def _run_queue(args: argparse.Namespace, state: dict) -> None:
+    source_rows = state.get("source_rows", {})
+    if not source_rows:
+        if args.format == "csv":
+            print("customer_id,legal_name,outstanding_inr,score,overdue_days,ageing_bucket,eligible,policy_version,explanation,missing_inputs")
+        elif args.format == "html":
+            print(render_queue_html(()), end="")
+        else:
+            print(f"tenant={args.tenant} queue=empty")
+        return
+    ranked = _ranked_accounts(args, state)
     if args.format == "csv":
         print(render_queue_csv(ranked), end="")
     elif args.format == "html":
         print(render_queue_html(ranked), end="")
     else:
         print(render_queue_text(ranked), end="")
+
+
+def _run_msmed(args: argparse.Namespace, state: dict) -> None:
+    """MSMED §16/§18 positions for every eligible overdue account. The bank
+    rate is a dated CLI input, never fetched."""
+    if not state.get("source_rows"):
+        print(f"tenant={args.tenant} msmed=no overdue positions")
+        return
+    config = MsmedConfig(
+        bank_rate_annual_pct=Decimal(args.bank_rate),
+        terms_days=args.terms_days,
+        notice_days=args.notice_days,
+    )
+    as_of = date.fromisoformat(args.as_of)
+    rows = []
+    for ranked in _ranked_accounts(args, state):
+        position = msmed_position(ranked, as_of=as_of, config=config)
+        if position is not None:
+            rows.append(position)
+    if args.format == "csv":
+        print("customer_id,overdue_days,days_beyond_terms,interest_accrued_inr,samadhaan_eligible,policy_version,explanation")
+        for p in rows:
+            print(
+                f"{p.customer_id},{p.overdue_days},{p.days_beyond_terms},"
+                f"{p.interest_accrued:.2f},{str(p.samadhaan_eligible).lower()},"
+                f"{p.policy_version},\"{p.explanation}\""
+            )
+    else:
+        if not rows:
+            print(f"tenant={args.tenant} msmed=no overdue positions")
+        for p in rows:
+            print(
+                f"{p.customer_id}: beyond terms {p.days_beyond_terms}d, "
+                f"interest {p.interest_accrued:.2f} INR, "
+                f"samadhaan={'yes' if p.samadhaan_eligible else 'no'}"
+            )
 
 
 def _run_case(args: argparse.Namespace, state: dict) -> None:
