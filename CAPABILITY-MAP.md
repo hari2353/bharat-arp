@@ -8,10 +8,11 @@ validated independently and the dependency direction stays one-way.
 | `tenant-audit` | Tenant identity, operator scope, data classification, lifecycle, and append-only audit records with documented purge redaction | None |
 | `source-ingestion` | CSV imports first; ERPNext adapter later; provenance and idempotent upserts | `tenant-audit` |
 | `receivables-model` | Customers, invoices, outstanding balances, allocations, disputes, payment terms | `tenant-audit`, `source-ingestion` |
-| `collections-decisioning` | Explainable account ranking and bounded next-action proposals | `receivables-model` |
+| `collections-decisioning` | Explainable account ranking, dispute containment (chase undisputed lines, route disputed ones), a deterministic dunning-cadence ladder, and bounded next-action proposals | `receivables-model` |
 | `promise-to-pay` | Record, update, and evaluate payment promises | `receivables-model` |
 | `approval-actions` | Approval inbox and provider-neutral outbound action contract | `tenant-audit`, `collections-decisioning`, `promise-to-pay` |
-| `outcome-measurement` | Payment linkage, broken-promise tracking, cohort metrics, pilot reporting | `receivables-model`, `promise-to-pay`, `approval-actions` |
+| `outcome-measurement` | Payment linkage, broken-promise tracking, cohort metrics (incl. DSO), pilot reporting | `receivables-model`, `promise-to-pay`, `approval-actions` |
+| `msmed-lever` | MSMED Act §16 compound-interest accrual and §18 Samadhaan filing eligibility, computed from the evidence ledger | `collections-decisioning` |
 | `connectors` | Optional ERPNext, email, and compliant messaging adapters | `source-ingestion`, `approval-actions` |
 
 ## Build Order

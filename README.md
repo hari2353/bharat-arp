@@ -96,6 +96,7 @@ python -m bharat_arp.cli --workspace .\workspace queue --tenant TENANT-1 --as-of
 python -m bharat_arp.cli --workspace .\workspace case create --tenant TENANT-1 --case CASE-1 --customer CUST-1
 python -m bharat_arp.cli --workspace .\workspace promise record --tenant TENANT-1 --promise PROMISE-1 --customer CUST-1 --amount 125000.00 --due 2026-10-15
 python -m bharat_arp.cli --workspace .\workspace metrics --tenant TENANT-1 --format json
+python -m bharat_arp.cli --workspace .\workspace msmed --tenant TENANT-1 --as-of 2026-09-30 --format csv
 python -m bharat_arp.cli --workspace .\workspace export --tenant TENANT-1 --output .\workspace\exported
 python -m bharat_arp.cli --workspace .\workspace purge --tenant TENANT-1 --confirm
 ```
@@ -103,6 +104,21 @@ python -m bharat_arp.cli --workspace .\workspace purge --tenant TENANT-1 --confi
 The import directory must contain the seven files specified in
 [`docs/csv-contract.md`](docs/csv-contract.md). The queue uses the same
 reconciliation and decisioning code covered by the test suite.
+
+## Collections Levers
+
+- **Dispute containment:** a disputed invoice drops out of the chase set
+  instead of freezing the account — undisputed overdue lines stay actionable,
+  disputed ones are reported separately (`disputed_outstanding`).
+- **Dunning cadence** (`bharat_arp.cadence`): a deterministic 5-step ladder
+  (gentle → firm → final → escalation → credit-hold review, gated at
+  1/15/30/45/60 overdue days), one step per review, paused by a live promise,
+  stopped by payment. Every step is an approval-gated proposal.
+- **MSMED delayed-payment lever** (`msmed` command): §16 compound interest at
+  3× the RBI bank rate beyond the agreed terms and §18 MSME Samadhaan filing
+  eligibility. The bank rate is a dated input (`--bank-rate`), never fetched.
+- **DSO** (`metrics`, `--dso-window`): days-sales-outstanding over the
+  imported invoice facts; omitted when the window saw no sales.
 
 ## Status
 

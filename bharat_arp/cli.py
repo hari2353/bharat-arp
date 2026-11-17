@@ -182,6 +182,8 @@ def _parser() -> argparse.ArgumentParser:
     metrics.add_argument("--from", dest="from_date")
     metrics.add_argument("--to", dest="to_date")
     metrics.add_argument("--snapshot")
+    metrics.add_argument("--dso-window", type=int, default=90,
+                         help="DSO sales window in days; widen for older books")
     metrics.add_argument("--format", choices=("text", "json"), default="text")
 
     export = subparsers.add_parser("export")
@@ -691,6 +693,7 @@ def _dso_from_state(args: argparse.Namespace, state: dict) -> Decimal | None:
     return days_sales_outstanding(
         list(store.current_records("invoices")),
         as_of=date.fromisoformat(args.to_date or "2026-09-30"),
+        window_days=args.dso_window,
     )
 
 
