@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 
 @dataclass(frozen=True)
@@ -51,6 +51,39 @@ class WeeklySnapshot:
     promise_partial: int
     promise_broken: int
     attribution_language: str = "payment observed after proposal"
+
+
+def days_sales_outstanding(
+    invoices, *, as_of: date, window_days: int = 90
+) -> Decimal | None:
+    """DSO, ratio method: outstanding at as_of (non-cancelled, non-paid
+    invoices already due) divided by invoiced sales in the window, times
+    the window length. None when the window saw no sales — an honest gap,
+    not a division by zero. All Decimal, 2 dp."""
+    window_start = as_of - timedelta(days=window_days)
+    outstanding = sum(
+        (
+            invoice.amount_inr
+            for invoice in invoices
+            if invoice.status not in ("cancelled", "paid")
+            and invoice.due_date <= as_of
+        ),
+        Decimal("0.00"),
+    )
+    sales = sum(
+        (
+            invoice.amount_inr
+            for invoice in invoices
+            if invoice.status != "cancelled"
+            and window_start <= invoice.invoice_date <= as_of
+        ),
+        Decimal("0.00"),
+    )
+    if sales <= 0:
+        return None
+    return (outstanding / sales * window_days).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
 
 
 def measure_pilot(

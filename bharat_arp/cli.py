@@ -14,7 +14,7 @@ from pathlib import Path
 from .decisioning import AccountExposure, CustomerAccount, RankedAccount, rank_accounts
 from .msmed import MsmedConfig, msmed_position
 from .importing import validate_csv_text
-from .metrics import AccountMeasurement, snapshot_pilot
+from .metrics import AccountMeasurement, days_sales_outstanding, snapshot_pilot
 from .normalization import NormalizedSourceStore
 from .reconciliation import reconcile_invoice
 from .reports import render_queue_csv, render_queue_html, render_queue_text
@@ -680,6 +680,20 @@ def _run_retention(args: argparse.Namespace, state: dict) -> None:
     print(f"retention expired={len(expired_batches)}")
 
 
+def _dso_from_state(args: argparse.Namespace, state: dict) -> Decimal | None:
+    """DSO over the stored invoice rows; None when the state has no invoices
+    or the window saw no sales."""
+    if not state.get("source_rows", {}).get("invoices"):
+        return None
+    store = NormalizedSourceStore(tenant_id=args.tenant)
+    for record_type, rows in state["source_rows"].items():
+        store.upsert_rows(record_type, rows)
+    return days_sales_outstanding(
+        list(store.current_records("invoices")),
+        as_of=date.fromisoformat(args.to_date or "2026-09-30"),
+    )
+
+
 def _run_metrics(args: argparse.Namespace, state: dict) -> None:
     summary = {
         "tenant": args.tenant,
@@ -695,6 +709,10 @@ def _run_metrics(args: argparse.Namespace, state: dict) -> None:
         "outcomes": len(state.get("outcomes", [])),
         "audit_events": len(state.get("audit", [])),
     }
+    # DSO from the imported invoice facts (ratio method, 90-day window)
+    dso = _dso_from_state(args, state)
+    if dso is not None:
+        summary["dso_days"] = str(dso)
     if args.snapshot:
         snapshot = _build_snapshot(args, state)
         snapshots = state.setdefault("snapshots", [])
