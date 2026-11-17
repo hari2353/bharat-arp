@@ -22,6 +22,7 @@ class CustomerAccount:
     unresolved_dispute: bool = False
     payment_history_available: bool = False
     data_quality_exceptions: tuple[str, ...] = ()
+    disputed_invoice_ids: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class RankedAccount:
     policy_version: str
     explanation: str
     missing_inputs: tuple[str, ...]
+    disputed_outstanding: Decimal = Decimal("0.00")
 
 
 def _ageing_bucket(overdue_days: int) -> str:
@@ -63,8 +65,35 @@ def rank_accounts(
             for exposure in account.exposures
             if exposure.due_date < as_of and exposure.outstanding > 0
         ]
+        # Dispute containment (market-steal, Kolleno): contested lines drop
+        # out of the chase set instead of freezing the account. A bare
+        # unresolved_dispute boolean without invoice ids cannot isolate the
+        # contested lines, so that caller keeps the legacy contract exactly
+        # (ranking on the whole account, open_dispute missing input blocks
+        # the contact proposal, eligibility unchanged).
+        disputed_ids = account.disputed_invoice_ids
+        legacy_dispute = account.unresolved_dispute and not disputed_ids
+        if legacy_dispute:
+            disputed_overdue = overdue_exposures
+            chaseable = overdue_exposures
+            undisputed_outstanding = outstanding
+        else:
+            disputed_overdue = [
+                e for e in overdue_exposures if e.invoice_id in disputed_ids
+            ]
+            chaseable = [
+                e for e in overdue_exposures if e.invoice_id not in disputed_ids
+            ]
+            undisputed_outstanding = sum(
+                (e.outstanding for e in account.exposures
+                 if e.invoice_id not in disputed_ids),
+                Decimal("0.00"),
+            )
+        disputed_outstanding = sum(
+            (e.outstanding for e in disputed_overdue), Decimal("0.00")
+        )
         overdue_days = max(
-            ((as_of - exposure.due_date).days for exposure in overdue_exposures),
+            ((as_of - exposure.due_date).days for exposure in chaseable),
             default=0,
         )
         ageing_bucket = _ageing_bucket(overdue_days)
@@ -74,17 +103,17 @@ def rank_accounts(
         if not account.exposures:
             missing_inputs.append("outstanding_exposure")
 
-        eligible = bool(overdue_exposures) and not account.data_quality_exceptions
+        eligible = bool(chaseable) and not account.data_quality_exceptions
         if outstanding < 0:
             eligible = False
             missing_inputs.append("overpayment_review")
-        if account.unresolved_dispute:
+        if legacy_dispute or (disputed_overdue and not chaseable):
             missing_inputs.append("open_dispute")
         missing_inputs.extend(account.data_quality_exceptions)
 
         if eligible:
             score = (
-                outstanding
+                undisputed_outstanding
                 + Decimal(overdue_days * 100)
                 + Decimal(account.broken_promises * 10000)
             )
@@ -96,6 +125,11 @@ def rank_accounts(
             f"overdue_days={overdue_days}; ageing_bucket={ageing_bucket}; "
             f"broken_promises={account.broken_promises}"
         )
+        if disputed_overdue and chaseable and not legacy_dispute:
+            explanation += (
+                f"; undisputed_outstanding_inr={undisputed_outstanding:.2f};"
+                f" dispute_contained_invoices={len(disputed_overdue)}"
+            )
         if missing_inputs:
             explanation += f"; missing_or_risk_inputs={','.join(missing_inputs)}"
         if not eligible:
@@ -112,6 +146,7 @@ def rank_accounts(
                 policy_version=policy_version,
                 explanation=explanation,
                 missing_inputs=tuple(missing_inputs),
+                disputed_outstanding=disputed_outstanding,
             )
         )
 
