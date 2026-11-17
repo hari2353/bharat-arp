@@ -54,16 +54,25 @@ class WeeklySnapshot:
 
 
 def days_sales_outstanding(
-    invoices, *, as_of: date, window_days: int = 90
+    invoices, *, as_of: date, window_days: int = 90,
+    payments=(), allocations=(), credit_notes=(),
 ) -> Decimal | None:
-    """DSO, ratio method: outstanding at as_of (non-cancelled, non-paid
-    invoices already due) divided by invoiced sales in the window, times
-    the window length. None when the window saw no sales — an honest gap,
-    not a division by zero. All Decimal, 2 dp."""
+    """DSO, ratio method: RECONCILED outstanding at as_of (payments,
+    allocations and credit notes applied — the same reconcile_invoice the
+    queue uses, so a part-paid book is not overstated) divided by invoiced
+    sales in the window, times the window length. None when the window saw
+    no sales — an honest gap, not a division by zero. All Decimal, 2 dp."""
+    from .reconciliation import reconcile_invoice
+
     window_start = as_of - timedelta(days=window_days)
     outstanding = sum(
         (
-            invoice.amount_inr
+            reconcile_invoice(
+                invoice,
+                payments=list(payments),
+                allocations=list(allocations),
+                credit_notes=list(credit_notes),
+            ).outstanding
             for invoice in invoices
             if invoice.status not in ("cancelled", "paid")
             and invoice.due_date <= as_of

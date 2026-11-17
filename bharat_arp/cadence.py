@@ -61,6 +61,10 @@ def next_cadence_step(
     safe to propose. Deterministic: `as_of` is an argument, never the clock."""
     if not ranked.eligible or ranked.outstanding <= 0 or ranked.overdue_days < 1:
         return None
+    # the ladder chases undisputed money only; disputed lines are contained
+    undisputed = ranked.outstanding - (ranked.disputed_outstanding or Decimal("0.00"))
+    if undisputed <= 0:
+        return None
     if state.paused_until is not None and state.paused_until > as_of:
         return None                     # a live promise outranks the ageing
     # advance at most one step; the terminal step re-issues in place
@@ -72,8 +76,10 @@ def next_cadence_step(
         f"customer={ranked.customer_id}; overdue_days={ranked.overdue_days}; "
         f"cadence step {index}/{len(CADENCE_STEPS)} {step.name} "
         f"(min_overdue_days={step.min_overdue_days}); "
-        f"outstanding_inr={ranked.outstanding:.2f}"
+        f"undisputed_outstanding_inr={undisputed:.2f}"
     )
+    if ranked.disputed_outstanding:
+        reason += f"; dispute_contained_inr={ranked.disputed_outstanding:.2f}"
     return CadenceProposal(
         customer_id=ranked.customer_id,
         action=step.action,
@@ -82,7 +88,7 @@ def next_cadence_step(
         policy_version=POLICY_VERSION,
         requires_approval=True,
         executes_side_effect=False,
-        outstanding=ranked.outstanding,
+        outstanding=undisputed,
         step_index=index,
         step_name=step.name,
     )

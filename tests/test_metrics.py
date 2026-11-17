@@ -152,3 +152,28 @@ def test_dso_zero_when_nothing_outstanding():
     invoices = [_inv("I1", "C1", "300000.00", date(2026, 8, 1), date(2026, 8, 31),
                      status="paid")]
     assert days_sales_outstanding(invoices, as_of=date(2026, 9, 30)) == Decimal("0.00")
+
+
+def test_dso_uses_reconciled_outstanding_not_gross_invoice_amount():
+    """100k invoice with a 40k posted payment allocated to it: outstanding is
+    60k, so DSO = 60000/100000*90 = 54.00 — not the gross 90.00."""
+    from bharat_arp.models import Payment, PaymentAllocation
+
+    ref_pay = SourceRef(tenant_id="T1", source_system="erpnext_csv",
+                        source_record_id="PAY-1", record_type="payments",
+                        source_updated_at=datetime(2026, 9, 30, tzinfo=timezone.utc),
+                        import_batch_id="B1")
+    ref_alloc = SourceRef(tenant_id="T1", source_system="erpnext_csv",
+                          source_record_id="ALLOC-1", record_type="payment_allocations",
+                          source_updated_at=datetime(2026, 9, 30, tzinfo=timezone.utc),
+                          import_batch_id="B1")
+    invoices = [_inv("I1", "C1", "100000.00", date(2026, 8, 1), date(2026, 8, 31))]
+    payments = [Payment(ref=ref_pay, payment_date=date(2026, 9, 5),
+                        amount_inr=Decimal("40000.00"), status="posted")]
+    allocations = [PaymentAllocation(ref=ref_alloc, payment_id="PAY-1",
+                                     invoice_id="I1",
+                                     allocated_amount_inr=Decimal("40000.00"))]
+    dso = days_sales_outstanding(invoices, payments=payments,
+                                 allocations=allocations, credit_notes=(),
+                                 as_of=date(2026, 9, 30))
+    assert dso == Decimal("54.00")

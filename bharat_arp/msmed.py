@@ -49,6 +49,11 @@ def msmed_position(
         return None
     if not ranked.eligible or ranked.outstanding <= 0:
         return None
+    # the interest base pairs with the undisputed ageing: disputed lines are
+    # excluded (a legal-remedy lever must not chase contested money)
+    base = ranked.outstanding - (ranked.disputed_outstanding or Decimal("0.00"))
+    if base <= 0:
+        return None
     days_beyond_terms = ranked.overdue_days - config.terms_days
     if days_beyond_terms <= 0:
         return None
@@ -60,18 +65,25 @@ def msmed_position(
     )
     months = days_beyond_terms // 30
     growth = (Decimal(1) + monthly_rate) ** months
-    interest = (ranked.outstanding * (growth - Decimal(1))).quantize(
+    interest = (base * (growth - Decimal(1))).quantize(
         TWO_PLACES, rounding=ROUND_HALF_UP
     )
+    # pathological rates (a slipped decimal on --bank-rate) must not mint
+    # interest larger than the principal — cap and say so
+    capped = interest > base
+    if capped:
+        interest = base.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
     samadhaan_eligible = days_beyond_terms >= config.notice_days
     explanation = (
         f"customer={ranked.customer_id}; overdue_days={ranked.overdue_days}; "
         f"terms_days={config.terms_days}; days_beyond_terms={days_beyond_terms}; "
         f"bank_rate={config.bank_rate_annual_pct}; rate=3x bank rate "
         f"compounded monthly; months={months}; "
-        f"outstanding_inr={ranked.outstanding:.2f}; "
-        f"interest_accrued_inr={interest:.2f}; "
-        f"samadhaan_eligible={str(samadhaan_eligible).lower()} "
+        f"undisputed_outstanding_inr={base:.2f}; "
+        + (f"disputed_excluded_inr={ranked.disputed_outstanding:.2f}; " if ranked.disputed_outstanding else "")
+        + f"interest_accrued_inr={interest:.2f}; "
+        + ("interest_capped_to_undisputed_outstanding; " if capped else "")
+        + f"samadhaan_eligible={str(samadhaan_eligible).lower()} "
         f"(notice_days={config.notice_days})"
     )
     return MsmedPosition(

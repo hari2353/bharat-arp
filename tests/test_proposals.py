@@ -80,3 +80,24 @@ def test_propose_accepts_autonomy_param():
     assert p.requires_approval is True
     assert p.action == "draft_customer_follow_up"
 
+
+
+def test_follow_up_proposal_chases_only_undisputed_exposure():
+    """The approval layer must not ask a human to chase disputed money:
+    a mixed account's follow-up proposal carries the undisputed amount."""
+    mixed = RankedAccount(
+        customer_id="CUST-1",
+        legal_name="Sharma Engineering",
+        score=Decimal("130000.00"),
+        outstanding=Decimal("125000.00"),
+        overdue_days=90,
+        ageing_bucket="90_plus",
+        eligible=True,
+        policy_version="v1",
+        explanation="outstanding_inr=125000.00; dispute_contained_invoices=1",
+        missing_inputs=(),
+        disputed_outstanding=Decimal("55000.00"),
+    )
+    proposal = propose_account_action(mixed, contact=contact("eligible"))
+    assert proposal.outstanding == Decimal("70000.00")
+    assert "dispute_contained" in proposal.reason

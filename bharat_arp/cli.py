@@ -694,6 +694,9 @@ def _dso_from_state(args: argparse.Namespace, state: dict) -> Decimal | None:
         list(store.current_records("invoices")),
         as_of=date.fromisoformat(args.to_date or "2026-09-30"),
         window_days=args.dso_window,
+        payments=list(store.current_records("payments")),
+        allocations=list(store.current_records("payment_allocations")),
+        credit_notes=list(store.current_records("credit_notes")),
     )
 
 
@@ -783,6 +786,17 @@ def _build_snapshot(args: argparse.Namespace, state: dict):
         for item in source_store.current_records("disputes")
         if item.status == "open"
     }
+    # same containment join as _ranked_accounts: the snapshot must not run
+    # the legacy boolean freeze while queue/msmed chase contained accounts
+    disputed_invoices = {
+        item.invoice_id
+        for item in source_store.current_records("disputes")
+        if item.status == "open"
+    }
+    invoice_customers = {
+        invoice.ref.source_record_id: invoice.customer_id
+        for invoice in source_store.current_records("invoices")
+    }
     ranked = rank_accounts(
         [
             CustomerAccount(
@@ -790,6 +804,10 @@ def _build_snapshot(args: argparse.Namespace, state: dict):
                 legal_name=names.get(customer_id, customer_id),
                 exposures=tuple(exposures),
                 unresolved_dispute=customer_id in open_disputes,
+                disputed_invoice_ids=frozenset(
+                    inv for inv in disputed_invoices
+                    if invoice_customers.get(inv) == customer_id
+                ),
                 data_quality_exceptions=tuple(sorted(set(exceptions.get(customer_id, [])))),
             )
             for customer_id, exposures in accounts.items()

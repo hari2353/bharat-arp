@@ -21,6 +21,13 @@ class AccountProposal:
     outstanding: Decimal
 
 
+def _undisputed(ranked_account: RankedAccount) -> Decimal:
+    """Chase amount: total outstanding minus contained disputed lines."""
+    return ranked_account.outstanding - (
+        ranked_account.disputed_outstanding or Decimal("0.00")
+    )
+
+
 def propose_account_action(
     ranked_account: RankedAccount, *, contact: CommunicationEligibility | None,
     autonomy: AutonomyState | None = None,
@@ -71,7 +78,7 @@ def propose_account_action(
         policy_version=ranked_account.policy_version,
         requires_approval=True,
         executes_side_effect=False,
-        outstanding=ranked_account.outstanding,
+        outstanding=_undisputed(ranked_account),
     )
 
 
@@ -85,5 +92,5 @@ def _review(ranked_account: RankedAccount, reason: str) -> AccountProposal:
         policy_version=ranked_account.policy_version,
         requires_approval=True,
         executes_side_effect=False,
-        outstanding=ranked_account.outstanding,
+        outstanding=_undisputed(ranked_account),
     )

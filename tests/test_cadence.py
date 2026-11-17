@@ -88,3 +88,18 @@ def test_proposal_carries_its_evidence():
                           as_of=date(2026, 9, 30))
     assert "CUST-1" in p.reason and "20" in p.reason    # customer + ageing
     assert p.policy_version == "cadence-2026-11"
+
+
+def test_cadence_chases_only_undisputed_exposure():
+    """120k outstanding with 70k on disputed lines: the follow-up proposal
+    chases 50k and its evidence says what was contained."""
+    account = RankedAccount(
+        customer_id="CUST-1", legal_name="Acme", score=Decimal("100.00"),
+        outstanding=Decimal("120000.00"), overdue_days=10,
+        ageing_bucket="1_29", eligible=True, policy_version="v1",
+        explanation="outstanding_inr=120000.00", missing_inputs=(),
+        disputed_outstanding=Decimal("70000.00"),
+    )
+    p = next_cadence_step(account, CadenceState("CUST-1"), as_of=date(2026, 9, 30))
+    assert p.outstanding == Decimal("50000.00")
+    assert "dispute_contained_inr=70000.00" in p.reason

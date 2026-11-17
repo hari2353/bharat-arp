@@ -90,3 +90,29 @@ def test_custom_terms_shift_the_whole_calculation():
     assert pos.days_beyond_terms == 30
     assert pos.interest_accrued == Decimal("1625.00")   # 100000 × 0.01625
     assert pos.samadhaan_eligible is True               # 30 >= 15 notice days
+
+
+def test_msmed_interest_uses_undisputed_base_for_mixed_accounts():
+    """170k outstanding but 100k sits on disputed lines: §16 interest is
+    computed on the 70k that matches the undisputed ageing, and the
+    explanation says what was excluded. 70000 x (1.01625^3 - 1) = 3468.25."""
+    account = RankedAccount(
+        customer_id="CUST-1", legal_name="Acme", score=Decimal("100.00"),
+        outstanding=Decimal("170000.00"), overdue_days=135,
+        ageing_bucket="90_plus", eligible=True, policy_version="v1",
+        explanation="outstanding_inr=170000.00", missing_inputs=(),
+        disputed_outstanding=Decimal("100000.00"),
+    )
+    pos = msmed_position(account, as_of=date(2026, 9, 30), config=MsmedConfig())
+    assert pos.interest_accrued == Decimal("3468.25")
+    assert "disputed_excluded_inr=100000.00" in pos.explanation
+
+
+def test_interest_is_capped_at_the_undisputed_outstanding():
+    """A slipped decimal on --bank-rate (650%) must not mint interest larger
+    than the principal: capped, and the explanation says so."""
+    config = MsmedConfig(bank_rate_annual_pct=Decimal("650"))
+    pos = msmed_position(ranked(overdue_days=135), as_of=date(2026, 9, 30),
+                         config=config)
+    assert pos.interest_accrued == Decimal("100000.00")     # == base
+    assert "capped" in pos.explanation
