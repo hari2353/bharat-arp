@@ -530,13 +530,22 @@ def _ranked_accounts(args: argparse.Namespace, state: dict) -> tuple[RankedAccou
         exceptions.setdefault(invoice.customer_id, []).extend(result.exceptions)
     # invoice-level dispute ids: containment (decisioning) drops only the
     # contested lines; the boolean stays for the legacy review flow
-    disputed_invoices = {
-        item.invoice_id for item in disputes if item.status == "open"
-    }
-    open_disputes = {item.customer_id for item in disputes if item.status == "open"}
+    open_dispute_records = [item for item in disputes if item.status == "open"]
+    disputed_invoices = {item.invoice_id for item in open_dispute_records}
+    open_disputes = {item.customer_id for item in open_dispute_records}
     invoice_customers = {
         invoice.ref.source_record_id: invoice.customer_id for invoice in invoices
     }
+    # an id-space mismatch (dispute rows naming invoices that were never
+    # imported) degrades containment back to the legacy freeze — that is the
+    # safe direction, but it must be SAID, never silent
+    unmatched = [d for d in open_dispute_records if d.invoice_id not in invoice_customers]
+    if unmatched:
+        print(
+            f"warning: {len(unmatched)} open dispute(s) could not be matched "
+            f"to invoices; dispute containment is inactive for those "
+            f"accounts (open_dispute flag applies)"
+        )
     return rank_accounts(
         [
             CustomerAccount(

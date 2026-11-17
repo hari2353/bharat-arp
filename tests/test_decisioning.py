@@ -165,3 +165,18 @@ def test_undisputed_account_output_unchanged_by_containment_fields():
     assert ranked[0].eligible is True
     assert ranked[0].disputed_outstanding == Decimal("0.00")
     assert "dispute_contained" not in ranked[0].explanation
+
+
+def test_legacy_dispute_does_not_claim_disputed_amounts():
+    """Review minor #10: the boolean-only path reported the ENTIRE overdue
+    outstanding as disputed_outstanding though no invoice was identified.
+    Without line attribution the field must not claim knowledge."""
+    accounts = [CustomerAccount(
+        customer_id="CUST-LEGACY", legal_name="Legacy",
+        exposures=(_exposure("INV-1", "50000.00", date(2026, 8, 1)),),
+        unresolved_dispute=True,
+    )]
+    ranked = rank_accounts(accounts, as_of=date(2026, 9, 30),
+                           policy_version="containment-1")
+    assert ranked[0].disputed_outstanding == Decimal("0.00")
+    assert "dispute_lines_unattributed" in ranked[0].explanation

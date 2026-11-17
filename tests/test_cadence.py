@@ -103,3 +103,12 @@ def test_cadence_chases_only_undisputed_exposure():
     p = next_cadence_step(account, CadenceState("CUST-1"), as_of=date(2026, 9, 30))
     assert p.outstanding == Decimal("50000.00")
     assert "dispute_contained_inr=70000.00" in p.reason
+
+
+def test_cadence_state_for_a_different_account_is_rejected():
+    """A state applied to the wrong account must not silently advance that
+    account's ladder (review minor #7)."""
+    from bharat_arp.cadence import CadenceState
+    r = ranked()
+    wrong = CadenceState("CUST-OTHER")
+    assert next_cadence_step(r, wrong, as_of=date(2026, 9, 30)) is None

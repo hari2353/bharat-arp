@@ -177,3 +177,17 @@ def test_dso_uses_reconciled_outstanding_not_gross_invoice_amount():
                                  allocations=allocations, credit_notes=(),
                                  as_of=date(2026, 9, 30))
     assert dso == Decimal("54.00")
+
+
+def test_dso_window_is_exactly_window_days_inclusive():
+    """Review minor #9: the window held 91 calendar dates of sales against
+    a 90-day factor. Exactly 90 dates count: as_of-89 .. as_of."""
+    invoices = [
+        _inv("EDGE-IN", "C1", "100000.00", date(2026, 7, 3), date(2026, 8, 2)),
+        # dated one day outside the window AND not yet due: excluded from
+        # both sales and outstanding
+        _inv("OUT-IN", "C2", "999999.00", date(2026, 7, 2), date(2026, 12, 2)),
+    ]
+    dso = days_sales_outstanding(invoices, as_of=date(2026, 9, 30))
+    # sales window: 7/3..9/30 (90 dates) -> only EDGE-IN counts
+    assert dso == Decimal("90.00")    # outstanding 100k / sales 100k * 90

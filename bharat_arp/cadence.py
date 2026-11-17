@@ -59,6 +59,8 @@ def next_cadence_step(
 ) -> CadenceProposal | None:
     """The next cadence step for one account, or None when there is nothing
     safe to propose. Deterministic: `as_of` is an argument, never the clock."""
+    if state.customer_id != ranked.customer_id:
+        return None                     # a state from another account never advances this ladder
     if not ranked.eligible or ranked.outstanding <= 0 or ranked.overdue_days < 1:
         return None
     # the ladder chases undisputed money only; disputed lines are contained

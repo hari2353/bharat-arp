@@ -669,3 +669,50 @@ def test_cli_snapshot_agrees_with_queue_on_dispute_containment(tmp_path: Path, c
     ) == 0
     state = json.loads((workspace / "TENANT-1" / "state.json").read_text())
     assert state["snapshots"][0]["decision_eligible_accounts"] == 0
+
+
+def test_cli_warns_when_dispute_ids_cannot_join_to_invoices(capsys, tmp_path):
+    """Review minor #8: an id-space mismatch silently degraded containment
+    back to the legacy freeze. The queue must SAY so."""
+    workspace = tmp_path / "workspace"
+    source = workspace / "input"
+    source.mkdir(parents=True)
+    common = "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
+    (source / "customers.csv").write_text(
+        f"{common},source_customer_id,legal_name,status\n"
+        "TENANT-1,erpnext_csv,CUST-1,2026-09-30T10:00:00+05:30,BATCH-1,CUST-1,Acme,active\n"
+    )
+    (source / "invoices.csv").write_text(
+        f"{common},source_invoice_id,source_customer_id,invoice_date,due_date,amount_inr,status\n"
+        "TENANT-1,erpnext_csv,INV-1,2026-09-30T10:00:00+05:30,BATCH-1,INV-1,CUST-1,2026-07-01,2026-08-01,125000.00,overdue\n"
+    )
+    (source / "payments.csv").write_text(
+        f"{common},source_payment_id,payment_date,amount_inr,status\n"
+        "TENANT-1,erpnext_csv,PAY-1,2026-09-30T10:00:00+05:30,BATCH-1,PAY-1,2026-09-01,0.00,posted\n"
+    )
+    (source / "payment_allocations.csv").write_text(
+        f"{common},source_payment_id,source_invoice_id,allocated_amount_inr\n"
+        "TENANT-1,erpnext_csv,ALLOC-1,2026-09-30T10:00:00+05:30,BATCH-1,PAY-1,INV-1,0.00\n"
+    )
+    (source / "credit_notes.csv").write_text(
+        f"{common},source_credit_note_id,source_invoice_id,credit_date,amount_inr,status\n"
+        "TENANT-1,erpnext_csv,CN-1,2026-09-30T10:00:00+05:30,BATCH-1,CN-1,INV-1,2026-08-15,0.00,posted\n"
+    )
+    (source / "contacts.csv").write_text(
+        f"{common},source_contact_id,source_customer_id,display_name,role,email,phone,email_permission,whatsapp_permission,opted_out,permission_observed_at\n"
+        "TENANT-1,erpnext_csv,CONTACT-1,2026-09-30T10:00:00+05:30,BATCH-1,CONTACT-1,CUST-1,Accounts Payable,AP,ap@example.com,+919999999999,eligible,unknown,false,2026-09-30T10:00:00+05:30\n"
+    )
+    # dispute references an invoice id that does NOT exist in invoices.csv
+    (source / "disputes.csv").write_text(
+        f"{common},source_dispute_id,source_customer_id,source_invoice_id,category,status,opened_at,resolved_at\n"
+        "TENANT-1,erpnext_csv,DISP-1,2026-09-30T10:00:00+05:30,BATCH-1,DISP-1,CUST-1,INV-MISSING,none,open,2026-08-01T10:00:00+05:30,2026-08-01T10:00:00+05:30\n"
+    )
+
+    assert run(["--workspace", str(workspace), "import", "--tenant", "TENANT-1",
+                "--batch", "BATCH-1", "--input", str(source)]) == 0
+    assert run(["--workspace", str(workspace), "queue", "--tenant", "TENANT-1",
+                "--as-of", "2026-09-30"]) == 0
+    out = capsys.readouterr().out
+    assert "1 open dispute(s) could not be matched to invoices" in out
+    # containment degraded honestly: the account still shows the legacy flag
+    assert "open_dispute" in out

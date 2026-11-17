@@ -74,6 +74,8 @@ def rank_accounts(
         disputed_ids = account.disputed_invoice_ids
         legacy_dispute = account.unresolved_dispute and not disputed_ids
         if legacy_dispute:
+            # no line attribution: report nothing as disputed — claiming the
+            # whole overdue balance is "disputed" is knowledge we do not have
             disputed_overdue = overdue_exposures
             chaseable = overdue_exposures
             undisputed_outstanding = outstanding
@@ -91,7 +93,7 @@ def rank_accounts(
             )
         disputed_outstanding = sum(
             (e.outstanding for e in disputed_overdue), Decimal("0.00")
-        )
+        ) if not legacy_dispute else Decimal("0.00")
         overdue_days = max(
             ((as_of - exposure.due_date).days for exposure in chaseable),
             default=0,
@@ -125,6 +127,8 @@ def rank_accounts(
             f"overdue_days={overdue_days}; ageing_bucket={ageing_bucket}; "
             f"broken_promises={account.broken_promises}"
         )
+        if legacy_dispute:
+            explanation += "; dispute_lines_unattributed=true"
         if disputed_overdue and chaseable and not legacy_dispute:
             explanation += (
                 f"; undisputed_outstanding_inr={undisputed_outstanding:.2f};"

@@ -77,8 +77,8 @@ def test_samadhaan_eligibility_boundary():
                               config=MsmedConfig())
     not_yet = msmed_position(ranked(overdue_days=59), as_of=date(2026, 9, 30),
                              config=MsmedConfig())
-    assert eligible.samadhaan_eligible is True       # 45 + 15 notice days
-    assert not_yet is None or not_yet.samadhaan_eligible is False
+    assert eligible is not None and eligible.samadhaan_eligible is True   # 45+15
+    assert not_yet is not None and not_yet.samadhaan_eligible is False    # 14d beyond
 
 
 def test_custom_terms_shift_the_whole_calculation():

@@ -64,7 +64,9 @@ def days_sales_outstanding(
     no sales — an honest gap, not a division by zero. All Decimal, 2 dp."""
     from .reconciliation import reconcile_invoice
 
-    window_start = as_of - timedelta(days=window_days)
+    # inclusive window: exactly window_days of sales (as_of-89..as_of for 90),
+    # not window_days+1
+    window_start = as_of - timedelta(days=window_days - 1)
     outstanding = sum(
         (
             reconcile_invoice(
