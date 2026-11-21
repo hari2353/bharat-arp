@@ -128,6 +128,11 @@ production financial, tax, legal, or collection decisions. Paid pilot
 validation is still pending. A synthetic end-to-end fixture is available in
 [`examples/demo`](examples/demo).
 
+## Scenario benchmark (Harvard Edge AVPerf cross-pollination)
+
+`bharat_arp.scenarios.run_scenarios` runs named collection workflows and
+reports a safe-completion rate with bounded failure detail.
+
 ## Research
 
 - [SHAKE ARP Manifesto](https://shakegraph.com/manifesto)
