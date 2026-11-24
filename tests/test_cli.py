@@ -70,7 +70,9 @@ def test_cli_proposal_decision_and_promise_record_write_audit(tmp_path: Path, ca
     assert state["proposals"][0]["status"] == "approved"
     assert state["promises"][0]["status"] == "proposed"
     assert [
-        event["action"] for event in state["audit"] if not event["action"].startswith("command_")
+        event["action"]
+        for event in state["audit"]
+        if not event["action"].startswith("command_")
     ] == [
         "proposal_created",
         "proposal_approved",
@@ -95,7 +97,7 @@ def test_cli_export_neutralizes_formula_values_and_purge_removes_tenant(tmp_path
             "sequence": 1,
             "tenant_id": "TENANT-1",
             "actor_id": "pilot_operator",
-            "action": "=HYPERLINK(\"https://evil.example\")",
+            "action": '=HYPERLINK("https://evil.example")',
             "object_id": "OBJ-1",
             "occurred_at": "2026-09-30T00:00:00+00:00",
         }
@@ -120,7 +122,19 @@ def test_cli_export_neutralizes_formula_values_and_purge_removes_tenant(tmp_path
     assert "'=HYPERLINK" in (output / "audit.csv").read_text()
 
     assert run(["--workspace", str(workspace), "purge", "--tenant", "TENANT-1"]) == 2
-    assert run(["--workspace", str(workspace), "purge", "--tenant", "TENANT-1", "--confirm"]) == 0
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "purge",
+                "--tenant",
+                "TENANT-1",
+                "--confirm",
+            ]
+        )
+        == 0
+    )
     assert not (workspace / "TENANT-1").exists()
 
 
@@ -128,49 +142,68 @@ def test_cli_legal_hold_blocks_purge_and_purge_writes_tombstone(tmp_path: Path):
     workspace = tmp_path / "workspace"
     run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
 
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "hold",
-            "add",
-            "--tenant",
-            "TENANT-1",
-            "--hold",
-            "HOLD-1",
-            "--reason",
-            "customer dispute",
-        ]
-    ) == 0
-    assert run(
-        ["--workspace", str(workspace), "purge", "--tenant", "TENANT-1", "--confirm"]
-    ) == 2
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "hold",
+                "add",
+                "--tenant",
+                "TENANT-1",
+                "--hold",
+                "HOLD-1",
+                "--reason",
+                "customer dispute",
+            ]
+        )
+        == 0
+    )
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "purge",
+                "--tenant",
+                "TENANT-1",
+                "--confirm",
+            ]
+        )
+        == 2
+    )
     assert (workspace / "TENANT-1" / "state.json").exists()
 
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "hold",
-            "remove",
-            "--tenant",
-            "TENANT-1",
-            "--hold",
-            "HOLD-1",
-        ]
-    ) == 0
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "purge",
-            "--tenant",
-            "TENANT-1",
-            "--confirm",
-            "--reason",
-            "pilot ended",
-        ]
-    ) == 0
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "hold",
+                "remove",
+                "--tenant",
+                "TENANT-1",
+                "--hold",
+                "HOLD-1",
+            ]
+        )
+        == 0
+    )
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "purge",
+                "--tenant",
+                "TENANT-1",
+                "--confirm",
+                "--reason",
+                "pilot ended",
+            ]
+        )
+        == 0
+    )
     tombstone = workspace / ".purged" / "TENANT-1.json"
     assert not (workspace / "TENANT-1").exists()
     tombstone_state = json.loads(tombstone.read_text())
@@ -183,17 +216,20 @@ def test_cli_export_rejects_path_outside_workspace(tmp_path: Path):
     workspace = tmp_path / "workspace"
     run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
 
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "export",
-            "--tenant",
-            "TENANT-1",
-            "--output",
-            str(tmp_path / "outside"),
-        ]
-    ) == 2
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "export",
+                "--tenant",
+                "TENANT-1",
+                "--output",
+                str(tmp_path / "outside"),
+            ]
+        )
+        == 2
+    )
 
 
 def test_cli_rejects_tenant_state_mismatch(tmp_path: Path):
@@ -222,22 +258,40 @@ def test_cli_retention_expires_raw_import_batches_but_respects_hold(tmp_path: Pa
     state["holds"] = [{"hold_id": "HOLD-1", "reason": "review", "active": True}]
     state_path.write_text(json.dumps(state))
 
-    assert run(
-        [
-            "--workspace", str(workspace), "retention", "apply", "--tenant", "TENANT-1",
-            "--as-of", "2026-10-03",
-        ]
-    ) == 2
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "retention",
+                "apply",
+                "--tenant",
+                "TENANT-1",
+                "--as-of",
+                "2026-10-03",
+            ]
+        )
+        == 2
+    )
     assert json.loads(state_path.read_text())["raw_imports"]
 
     state["holds"][0]["active"] = False
     state_path.write_text(json.dumps(state))
-    assert run(
-        [
-            "--workspace", str(workspace), "retention", "apply", "--tenant", "TENANT-1",
-            "--as-of", "2026-10-03",
-        ]
-    ) == 0
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "retention",
+                "apply",
+                "--tenant",
+                "TENANT-1",
+                "--as-of",
+                "2026-10-03",
+            ]
+        )
+        == 0
+    )
     retained_state = json.loads(state_path.read_text())
     assert retained_state["raw_imports"] == []
     assert retained_state["source_rows"]["invoices"] == []
@@ -299,21 +353,24 @@ def test_cli_metrics_accepts_window_and_json_format(tmp_path: Path, capsys):
     workspace = tmp_path / "workspace"
     run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
 
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "metrics",
-            "--tenant",
-            "TENANT-1",
-            "--from",
-            "2026-09-01",
-            "--to",
-            "2026-10-31",
-            "--format",
-            "json",
-        ]
-    ) == 0
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "metrics",
+                "--tenant",
+                "TENANT-1",
+                "--from",
+                "2026-09-01",
+                "--to",
+                "2026-10-31",
+                "--format",
+                "json",
+            ]
+        )
+        == 0
+    )
 
     assert '"from": "2026-09-01"' in capsys.readouterr().out
 
@@ -322,18 +379,38 @@ def test_cli_metrics_persists_idempotent_weekly_snapshot(tmp_path: Path, capsys)
     workspace = tmp_path / "workspace"
     run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
 
-    assert run(
-        [
-            "--workspace", str(workspace), "metrics", "--tenant", "TENANT-1",
-            "--snapshot", "2026-09-30", "--format", "json",
-        ]
-    ) == 0
-    assert run(
-        [
-            "--workspace", str(workspace), "metrics", "--tenant", "TENANT-1",
-            "--snapshot", "2026-09-30", "--format", "json",
-        ]
-    ) == 0
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "metrics",
+                "--tenant",
+                "TENANT-1",
+                "--snapshot",
+                "2026-09-30",
+                "--format",
+                "json",
+            ]
+        )
+        == 0
+    )
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "metrics",
+                "--tenant",
+                "TENANT-1",
+                "--snapshot",
+                "2026-09-30",
+                "--format",
+                "json",
+            ]
+        )
+        == 0
+    )
 
     state = json.loads((workspace / "TENANT-1" / "state.json").read_text())
     assert len(state["snapshots"]) == 1
@@ -380,57 +457,136 @@ def test_cli_supports_assignment_edits_rejection_reasons_and_partial_fulfilment(
     run(["--workspace", str(workspace), "init", "--tenant", "TENANT-1"])
     run(
         [
-            "--workspace", str(workspace), "case", "create", "--tenant", "TENANT-1",
-            "--case", "CASE-1", "--customer", "CUST-1",
+            "--workspace",
+            str(workspace),
+            "case",
+            "create",
+            "--tenant",
+            "TENANT-1",
+            "--case",
+            "CASE-1",
+            "--customer",
+            "CUST-1",
         ]
     )
     run(
         [
-            "--workspace", str(workspace), "case", "transition", "--tenant", "TENANT-1",
-            "--case", "CASE-1", "--status", "open",
+            "--workspace",
+            str(workspace),
+            "case",
+            "transition",
+            "--tenant",
+            "TENANT-1",
+            "--case",
+            "CASE-1",
+            "--status",
+            "open",
         ]
     )
     run(
         [
-            "--workspace", str(workspace), "case", "assign", "--tenant", "TENANT-1",
-            "--case", "CASE-1", "--assignee", "operator-2",
+            "--workspace",
+            str(workspace),
+            "case",
+            "assign",
+            "--tenant",
+            "TENANT-1",
+            "--case",
+            "CASE-1",
+            "--assignee",
+            "operator-2",
         ]
     )
     run(
         [
-            "--workspace", str(workspace), "proposal", "create", "--tenant", "TENANT-1",
-            "--proposal", "PROP-1", "--customer", "CUST-1",
+            "--workspace",
+            str(workspace),
+            "proposal",
+            "create",
+            "--tenant",
+            "TENANT-1",
+            "--proposal",
+            "PROP-1",
+            "--customer",
+            "CUST-1",
         ]
     )
     run(
         [
-            "--workspace", str(workspace), "proposal", "edit", "--tenant", "TENANT-1",
-            "--proposal", "PROP-1", "--action", "review_required", "--evidence", "e2",
+            "--workspace",
+            str(workspace),
+            "proposal",
+            "edit",
+            "--tenant",
+            "TENANT-1",
+            "--proposal",
+            "PROP-1",
+            "--action",
+            "review_required",
+            "--evidence",
+            "e2",
         ]
     )
     run(
         [
-            "--workspace", str(workspace), "proposal", "decide", "--tenant", "TENANT-1",
-            "--proposal", "PROP-1", "--decision", "reject", "--reason", "not ready",
+            "--workspace",
+            str(workspace),
+            "proposal",
+            "decide",
+            "--tenant",
+            "TENANT-1",
+            "--proposal",
+            "PROP-1",
+            "--decision",
+            "reject",
+            "--reason",
+            "not ready",
         ]
     )
     run(
         [
-            "--workspace", str(workspace), "promise", "record", "--tenant", "TENANT-1",
-            "--promise", "PROMISE-1", "--customer", "CUST-1", "--amount", "100.00",
-            "--due", "2026-10-15",
+            "--workspace",
+            str(workspace),
+            "promise",
+            "record",
+            "--tenant",
+            "TENANT-1",
+            "--promise",
+            "PROMISE-1",
+            "--customer",
+            "CUST-1",
+            "--amount",
+            "100.00",
+            "--due",
+            "2026-10-15",
         ]
     )
     run(
         [
-            "--workspace", str(workspace), "promise", "transition", "--tenant", "TENANT-1",
-            "--promise", "PROMISE-1", "--status", "accepted",
+            "--workspace",
+            str(workspace),
+            "promise",
+            "transition",
+            "--tenant",
+            "TENANT-1",
+            "--promise",
+            "PROMISE-1",
+            "--status",
+            "accepted",
         ]
     )
     run(
         [
-            "--workspace", str(workspace), "promise", "fulfil", "--tenant", "TENANT-1",
-            "--promise", "PROMISE-1", "--amount", "40.00",
+            "--workspace",
+            str(workspace),
+            "promise",
+            "fulfil",
+            "--tenant",
+            "TENANT-1",
+            "--promise",
+            "PROMISE-1",
+            "--amount",
+            "40.00",
         ]
     )
 
@@ -447,7 +603,9 @@ def test_cli_import_and_queue_rank_imported_customer_accounts(tmp_path: Path, ca
     workspace = tmp_path / "workspace"
     source = workspace / "input"
     source.mkdir(parents=True)
-    common = "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
+    common = (
+        "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
+    )
     (source / "customers.csv").write_text(
         f"{common},source_customer_id,legal_name,status\n"
         "TENANT-1,erpnext_csv,CUST-1,2026-09-30T10:00:00+05:30,BATCH-1,CUST-1,Acme,active\n"
@@ -477,43 +635,52 @@ def test_cli_import_and_queue_rank_imported_customer_accounts(tmp_path: Path, ca
         "TENANT-1,erpnext_csv,DISP-1,2026-09-30T10:00:00+05:30,BATCH-1,DISP-1,CUST-1,INV-1,none,resolved,2026-08-01T10:00:00+05:30,2026-08-02T10:00:00+05:30\n"
     )
 
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "import",
-            "--tenant",
-            "TENANT-1",
-            "--batch",
-            "BATCH-1",
-            "--input",
-            str(source),
-        ]
-    ) == 0
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "import",
-            "--tenant",
-            "TENANT-1",
-            "--batch",
-            "BATCH-1",
-            "--input",
-            str(source),
-        ]
-    ) == 0
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "queue",
-            "--tenant",
-            "TENANT-1",
-            "--as-of",
-            "2026-09-30",
-        ]
-    ) == 0
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "import",
+                "--tenant",
+                "TENANT-1",
+                "--batch",
+                "BATCH-1",
+                "--input",
+                str(source),
+            ]
+        )
+        == 0
+    )
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "import",
+                "--tenant",
+                "TENANT-1",
+                "--batch",
+                "BATCH-1",
+                "--input",
+                str(source),
+            ]
+        )
+        == 0
+    )
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "queue",
+                "--tenant",
+                "TENANT-1",
+                "--as-of",
+                "2026-09-30",
+            ]
+        )
+        == 0
+    )
 
     output = capsys.readouterr().out
     assert "Acme" in output
@@ -527,7 +694,9 @@ def test_cli_workflow_mutations_preserve_imported_source_rows(tmp_path: Path, ca
     workspace = tmp_path / "workspace"
     source = workspace / "input"
     source.mkdir(parents=True)
-    common = "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
+    common = (
+        "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
+    )
     (source / "customers.csv").write_text(
         f"{common},source_customer_id,legal_name,status\n"
         "TENANT-1,erpnext_csv,CUST-1,2026-09-30T10:00:00+05:30,BATCH-1,CUST-1,Acme,active\n"
@@ -557,62 +726,74 @@ def test_cli_workflow_mutations_preserve_imported_source_rows(tmp_path: Path, ca
         "TENANT-1,erpnext_csv,DISP-1,2026-09-30T10:00:00+05:30,BATCH-1,DISP-1,CUST-1,INV-1,none,resolved,2026-08-01T10:00:00+05:30,2026-08-02T10:00:00+05:30\n"
     )
 
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "import",
-            "--tenant",
-            "TENANT-1",
-            "--batch",
-            "BATCH-1",
-            "--input",
-            str(source),
-        ]
-    ) == 0
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "case",
-            "create",
-            "--tenant",
-            "TENANT-1",
-            "--case",
-            "CASE-1",
-            "--customer",
-            "CUST-1",
-        ]
-    ) == 0
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "promise",
-            "record",
-            "--tenant",
-            "TENANT-1",
-            "--promise",
-            "PROMISE-1",
-            "--customer",
-            "CUST-1",
-            "--amount",
-            "125000.00",
-            "--due",
-            "2026-10-15",
-        ]
-    ) == 0
-    assert run(
-        [
-            "--workspace",
-            str(workspace),
-            "queue",
-            "--tenant",
-            "TENANT-1",
-            "--as-of",
-            "2026-09-30",
-        ]
-    ) == 0
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "import",
+                "--tenant",
+                "TENANT-1",
+                "--batch",
+                "BATCH-1",
+                "--input",
+                str(source),
+            ]
+        )
+        == 0
+    )
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "case",
+                "create",
+                "--tenant",
+                "TENANT-1",
+                "--case",
+                "CASE-1",
+                "--customer",
+                "CUST-1",
+            ]
+        )
+        == 0
+    )
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "promise",
+                "record",
+                "--tenant",
+                "TENANT-1",
+                "--promise",
+                "PROMISE-1",
+                "--customer",
+                "CUST-1",
+                "--amount",
+                "125000.00",
+                "--due",
+                "2026-10-15",
+            ]
+        )
+        == 0
+    )
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "queue",
+                "--tenant",
+                "TENANT-1",
+                "--as-of",
+                "2026-09-30",
+            ]
+        )
+        == 0
+    )
 
     assert "Acme" in capsys.readouterr().out
 
@@ -624,7 +805,9 @@ def test_cli_snapshot_agrees_with_queue_on_dispute_containment(tmp_path: Path, c
     workspace = tmp_path / "workspace"
     source = workspace / "input"
     source.mkdir(parents=True)
-    common = "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
+    common = (
+        "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
+    )
     (source / "customers.csv").write_text(
         f"{common},source_customer_id,legal_name,status\n"
         "TENANT-1,erpnext_csv,CUST-1,2026-09-30T10:00:00+05:30,BATCH-1,CUST-1,Acme,active\n"
@@ -654,19 +837,53 @@ def test_cli_snapshot_agrees_with_queue_on_dispute_containment(tmp_path: Path, c
         "TENANT-1,erpnext_csv,DISP-1,2026-09-30T10:00:00+05:30,BATCH-1,DISP-1,CUST-1,INV-1,none,open,2026-08-01T10:00:00+05:30,2026-08-01T10:00:00+05:30\n"
     )
 
-    assert run(
-        ["--workspace", str(workspace), "import", "--tenant", "TENANT-1",
-         "--batch", "BATCH-1", "--input", str(source)]
-    ) == 0
-    assert run(
-        ["--workspace", str(workspace), "queue", "--tenant", "TENANT-1",
-         "--as-of", "2026-09-30"]
-    ) == 0
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "import",
+                "--tenant",
+                "TENANT-1",
+                "--batch",
+                "BATCH-1",
+                "--input",
+                str(source),
+            ]
+        )
+        == 0
+    )
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "queue",
+                "--tenant",
+                "TENANT-1",
+                "--as-of",
+                "2026-09-30",
+            ]
+        )
+        == 0
+    )
     assert "eligible=false" in capsys.readouterr().out
-    assert run(
-        ["--workspace", str(workspace), "metrics", "--tenant", "TENANT-1",
-         "--snapshot", "2026-09-30", "--format", "json"]
-    ) == 0
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "metrics",
+                "--tenant",
+                "TENANT-1",
+                "--snapshot",
+                "2026-09-30",
+                "--format",
+                "json",
+            ]
+        )
+        == 0
+    )
     state = json.loads((workspace / "TENANT-1" / "state.json").read_text())
     assert state["snapshots"][0]["decision_eligible_accounts"] == 0
 
@@ -677,7 +894,9 @@ def test_cli_warns_when_dispute_ids_cannot_join_to_invoices(capsys, tmp_path):
     workspace = tmp_path / "workspace"
     source = workspace / "input"
     source.mkdir(parents=True)
-    common = "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
+    common = (
+        "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
+    )
     (source / "customers.csv").write_text(
         f"{common},source_customer_id,legal_name,status\n"
         "TENANT-1,erpnext_csv,CUST-1,2026-09-30T10:00:00+05:30,BATCH-1,CUST-1,Acme,active\n"
@@ -708,10 +927,36 @@ def test_cli_warns_when_dispute_ids_cannot_join_to_invoices(capsys, tmp_path):
         "TENANT-1,erpnext_csv,DISP-1,2026-09-30T10:00:00+05:30,BATCH-1,DISP-1,CUST-1,INV-MISSING,none,open,2026-08-01T10:00:00+05:30,2026-08-01T10:00:00+05:30\n"
     )
 
-    assert run(["--workspace", str(workspace), "import", "--tenant", "TENANT-1",
-                "--batch", "BATCH-1", "--input", str(source)]) == 0
-    assert run(["--workspace", str(workspace), "queue", "--tenant", "TENANT-1",
-                "--as-of", "2026-09-30"]) == 0
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "import",
+                "--tenant",
+                "TENANT-1",
+                "--batch",
+                "BATCH-1",
+                "--input",
+                str(source),
+            ]
+        )
+        == 0
+    )
+    assert (
+        run(
+            [
+                "--workspace",
+                str(workspace),
+                "queue",
+                "--tenant",
+                "TENANT-1",
+                "--as-of",
+                "2026-09-30",
+            ]
+        )
+        == 0
+    )
     out = capsys.readouterr().out
     assert "1 open dispute(s) could not be matched to invoices" in out
     # containment degraded honestly: the account still shows the legacy flag

@@ -1,16 +1,11 @@
 from bharat_arp.importing import validate_csv_text
 
 
-COMMON = (
-    "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
-)
+COMMON = "tenant_id,source_system,source_record_id,source_updated_at,import_batch_id"
 
 
 def csv_text(rows: str, *, extra_headers: str = "") -> str:
-    return (
-        f"{COMMON},source_customer_id,legal_name,status{extra_headers}\n"
-        f"{rows}"
-    )
+    return f"{COMMON},source_customer_id,legal_name,status{extra_headers}\n{rows}"
 
 
 def test_valid_customer_csv_preserves_rows_without_exposing_values_in_errors():

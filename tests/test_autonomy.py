@@ -1,4 +1,9 @@
-from bharat_arp.autonomy import AutonomyState, AutonomyLevel, record_outcome, gate_action
+from bharat_arp.autonomy import (
+    AutonomyState,
+    AutonomyLevel,
+    record_outcome,
+    gate_action,
+)
 
 
 def test_starts_at_draft():
@@ -26,7 +31,10 @@ def test_irreversible_needs_approval_even_at_auto():
     s = AutonomyState()
     for _ in range(8):
         record_outcome(s, True)
-    assert gate_action(s, reversible=False) == (False, "irreversible action requires human approval")
+    assert gate_action(s, reversible=False) == (
+        False,
+        "irreversible action requires human approval",
+    )
 
 
 def test_failure_demotes():
@@ -45,4 +53,3 @@ def test_two_consecutive_failures_drop_to_draft():
     record_outcome(s, False)
     record_outcome(s, False)
     assert s.level == AutonomyLevel.DRAFT
-

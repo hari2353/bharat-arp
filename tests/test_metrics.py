@@ -1,7 +1,12 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
-from bharat_arp.metrics import AccountMeasurement, days_sales_outstanding, measure_pilot, snapshot_pilot
+from bharat_arp.metrics import (
+    AccountMeasurement,
+    days_sales_outstanding,
+    measure_pilot,
+    snapshot_pilot,
+)
 
 
 def measurement(**overrides):
@@ -105,15 +110,28 @@ from bharat_arp.metrics import days_sales_outstanding
 from bharat_arp.models import InvoiceRecord, SourceRef
 
 
-def _inv(inv_id: str, customer: str, amount: str, invoice_date: date,
-         due_date: date, status: str = "submitted") -> InvoiceRecord:
+def _inv(
+    inv_id: str,
+    customer: str,
+    amount: str,
+    invoice_date: date,
+    due_date: date,
+    status: str = "submitted",
+) -> InvoiceRecord:
     return InvoiceRecord(
-        ref=SourceRef(tenant_id="T1", source_system="erpnext_csv",
-                      source_record_id=inv_id, record_type="invoices",
-                      source_updated_at=datetime(2026, 9, 30, tzinfo=timezone.utc),
-                      import_batch_id="B1"),
-        customer_id=customer, invoice_date=invoice_date, due_date=due_date,
-        amount_inr=Decimal(amount), status=status,  # type: ignore[arg-type]
+        ref=SourceRef(
+            tenant_id="T1",
+            source_system="erpnext_csv",
+            source_record_id=inv_id,
+            record_type="invoices",
+            source_updated_at=datetime(2026, 9, 30, tzinfo=timezone.utc),
+            import_batch_id="B1",
+        ),
+        customer_id=customer,
+        invoice_date=invoice_date,
+        due_date=due_date,
+        amount_inr=Decimal(amount),
+        status=status,  # type: ignore[arg-type]
     )
 
 
@@ -122,8 +140,9 @@ def test_dso_matches_hand_computation():
     900k invoiced in the 90-day window: DSO = 300000/900000 * 90 = 30.0."""
     invoices = [
         _inv("I1", "C1", "300000.00", date(2026, 7, 10), date(2026, 8, 10)),
-        _inv("I2", "C2", "300000.00", date(2026, 8, 1), date(2026, 9, 1),
-             status="paid"),
+        _inv(
+            "I2", "C2", "300000.00", date(2026, 8, 1), date(2026, 9, 1), status="paid"
+        ),
         _inv("I3", "C3", "300000.00", date(2026, 9, 15), date(2026, 10, 15)),
     ]
     dso = days_sales_outstanding(invoices, as_of=date(2026, 9, 30))
@@ -133,14 +152,22 @@ def test_dso_matches_hand_computation():
 def test_dso_excludes_cancelled_and_not_yet_due_invoices_from_outstanding():
     invoices = [
         _inv("I1", "C1", "300000.00", date(2026, 7, 10), date(2026, 8, 10)),
-        _inv("X1", "C2", "999999.00", date(2026, 7, 10), date(2026, 8, 10),
-             status="cancelled"),
+        _inv(
+            "X1",
+            "C2",
+            "999999.00",
+            date(2026, 7, 10),
+            date(2026, 8, 10),
+            status="cancelled",
+        ),
         _inv("F1", "C3", "999999.00", date(2026, 9, 15), date(2026, 12, 15)),
     ]
     dso = days_sales_outstanding(invoices, as_of=date(2026, 9, 30))
     # outstanding: only I1 (300k, due); sales window 90d: I1 + F1 = 1.3M
     # F1 is not yet due so it drops from outstanding but still counts as sales
-    assert dso == (Decimal("300000.00") / Decimal("1300000.00") * 90).quantize(Decimal("0.01"))
+    assert dso == (Decimal("300000.00") / Decimal("1300000.00") * 90).quantize(
+        Decimal("0.01")
+    )
 
 
 def test_dso_with_no_sales_in_window_is_none_not_a_crash():
@@ -149,8 +176,11 @@ def test_dso_with_no_sales_in_window_is_none_not_a_crash():
 
 
 def test_dso_zero_when_nothing_outstanding():
-    invoices = [_inv("I1", "C1", "300000.00", date(2026, 8, 1), date(2026, 8, 31),
-                     status="paid")]
+    invoices = [
+        _inv(
+            "I1", "C1", "300000.00", date(2026, 8, 1), date(2026, 8, 31), status="paid"
+        )
+    ]
     assert days_sales_outstanding(invoices, as_of=date(2026, 9, 30)) == Decimal("0.00")
 
 
@@ -159,23 +189,46 @@ def test_dso_uses_reconciled_outstanding_not_gross_invoice_amount():
     60k, so DSO = 60000/100000*90 = 54.00 — not the gross 90.00."""
     from bharat_arp.models import Payment, PaymentAllocation
 
-    ref_pay = SourceRef(tenant_id="T1", source_system="erpnext_csv",
-                        source_record_id="PAY-1", record_type="payments",
-                        source_updated_at=datetime(2026, 9, 30, tzinfo=timezone.utc),
-                        import_batch_id="B1")
-    ref_alloc = SourceRef(tenant_id="T1", source_system="erpnext_csv",
-                          source_record_id="ALLOC-1", record_type="payment_allocations",
-                          source_updated_at=datetime(2026, 9, 30, tzinfo=timezone.utc),
-                          import_batch_id="B1")
+    ref_pay = SourceRef(
+        tenant_id="T1",
+        source_system="erpnext_csv",
+        source_record_id="PAY-1",
+        record_type="payments",
+        source_updated_at=datetime(2026, 9, 30, tzinfo=timezone.utc),
+        import_batch_id="B1",
+    )
+    ref_alloc = SourceRef(
+        tenant_id="T1",
+        source_system="erpnext_csv",
+        source_record_id="ALLOC-1",
+        record_type="payment_allocations",
+        source_updated_at=datetime(2026, 9, 30, tzinfo=timezone.utc),
+        import_batch_id="B1",
+    )
     invoices = [_inv("I1", "C1", "100000.00", date(2026, 8, 1), date(2026, 8, 31))]
-    payments = [Payment(ref=ref_pay, payment_date=date(2026, 9, 5),
-                        amount_inr=Decimal("40000.00"), status="posted")]
-    allocations = [PaymentAllocation(ref=ref_alloc, payment_id="PAY-1",
-                                     invoice_id="I1",
-                                     allocated_amount_inr=Decimal("40000.00"))]
-    dso = days_sales_outstanding(invoices, payments=payments,
-                                 allocations=allocations, credit_notes=(),
-                                 as_of=date(2026, 9, 30))
+    payments = [
+        Payment(
+            ref=ref_pay,
+            payment_date=date(2026, 9, 5),
+            amount_inr=Decimal("40000.00"),
+            status="posted",
+        )
+    ]
+    allocations = [
+        PaymentAllocation(
+            ref=ref_alloc,
+            payment_id="PAY-1",
+            invoice_id="I1",
+            allocated_amount_inr=Decimal("40000.00"),
+        )
+    ]
+    dso = days_sales_outstanding(
+        invoices,
+        payments=payments,
+        allocations=allocations,
+        credit_notes=(),
+        as_of=date(2026, 9, 30),
+    )
     assert dso == Decimal("54.00")
 
 
@@ -190,4 +243,4 @@ def test_dso_window_is_exactly_window_days_inclusive():
     ]
     dso = days_sales_outstanding(invoices, as_of=date(2026, 9, 30))
     # sales window: 7/3..9/30 (90 dates) -> only EDGE-IN counts
-    assert dso == Decimal("90.00")    # outstanding 100k / sales 100k * 90
+    assert dso == Decimal("90.00")  # outstanding 100k / sales 100k * 90
